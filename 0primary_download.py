@@ -9,10 +9,7 @@ Om Sai Ram
 
 #0 : Get listings of securities
 #1 : Download past data for all symbols into "datasets" folder (4 hours)
-#2 : Process data into sqlite3 database
-#3 : Fill missing data from bhav copy
-#4 : To do
-
+#2 : Proceed to selective download ( from meta\healths.csv which enlist top 50)
  
 '''
 def download(code,destfilepath,authkey):    
