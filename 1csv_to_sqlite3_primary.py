@@ -7,9 +7,6 @@ import sqlite3 as sql
 if not os.path.exists('database'):
     os.makedirs('database')
 
-database_path=os.path.join('database','main.db')
-conn=sql.connect(database_path)
-
 metadata = Helpers.MetaData()
 codes = metadata.healthy_codes.keys()
 
@@ -26,7 +23,10 @@ prices = [opriceColumnName,
           cpriceColumnName]
 others = [volumeColumnName]
 select = ddates + prices + others
-    
+
+database_path=os.path.join('database','main.db')
+conn=sql.connect(database_path)
+   
 i = 0
 for code in codes:
     i += 1
