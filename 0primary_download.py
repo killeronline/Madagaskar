@@ -1,80 +1,68 @@
 import os
+import sys
 import wget
-import quandl
 import Helpers
-
+import datetime
+#import threading
 '''
 Om Sai Ram
 
 #0 : Get listings of securities
-#1 : Get past data till date for all securities
-'''
+#1 : Download past data for all symbols into "datasets" folder (4 hours)
+#2 : Process data into sqlite3 database
+#3 : Fill missing data from bhav copy
+#4 : To do
 
+ 
+'''
+def download(code,destfilepath,authkey):    
+    url = "https://www.quandl.com/api/v3/datasets/BSE/"+code+".csv?api_key="+authkey            
+    wget.download(url,destfilepath)                        
+    
 metadata = Helpers.MetaData()
-codes = metadata.codes
+codes = metadata.codes.keys()
+
 if not os.path.exists('datasets'):
     os.makedirs('datasets')
-urls = []
-limit = 30
-li = 0
-for (code,name) in codes.items() :    
-    key = "dt4RSh7B_4EvdsMXnuD2"
-    quandl.ApiConfig.api_key = key
-    url = "https://www.quandl.com/api/v3/datasets/BSE/"+code+".csv?api_key="+key    
-    #downloaded_filename = wget.download(url)
-    urls.append(url)
-    li += 1
-    if li > limit :
-        break
+
+authkeys = ["dt4RSh7B_4EvdsMXnuD2",
+            "9anNRt9Wdvb59LPKdBEF",
+            "jLx3nTvNdTDDgKqU8S9c"]
+proc = 0
+if len(sys.argv) > 1 :
+    proc = int(sys.argv[1]) # One among i%3
+i = 0
+print("Running proc",proc+1)
+st = datetime.datetime.now()
+for code in codes :      
+    i += 1
+    try :                
+        if i%3 == proc :
+            filepath = os.path.join('datasets',code+'.csv')
+            if not os.path.exists(filepath):
+                akey = authkeys[i%3]                    
+                print(str(i)+" Triggered:"+code)
+                download(code,filepath,akey)                        
+            #else :
+                #print("File Exists:"+code)            
+                
+                # download(code,filepath,authkeys[t%3])
+            # download(code,filepath,akey)
+            # import threading        
+                #t = threading.Thread(target=download,args=(code,filepath,akey))
+                #t.start()                    
+            # threading is causing 429 error, too many requests, might get ban                                        
+    except :
+        print("Error:"+code)
+
+et = datetime.datetime.now()        
+tt = (et-st).seconds
+print("Completed",tt)        
     
-# Downloading Section Below   
+
+
     
-    
-import sys
-import os
-import urllib
-import threading
-from Queue import Queue
 
-class DownloadThread(threading.Thread):
-    def __init__(self, queue, destfolder):
-        super(DownloadThread, self).__init__()
-        self.queue = queue
-        self.destfolder = destfolder
-        self.daemon = True
-
-    def run(self):
-        while True:
-            url = self.queue.get()
-            try:
-                self.download_url(url)
-            except Exception,e:
-                print "   Error: %s"%e
-            self.queue.task_done()
-
-    def download_url(self, url):
-        # change it to a different way if you require
-        name = url.split('/')[-1]
-        dest = os.path.join(self.destfolder, name)
-        print "[%s] Downloading %s -> %s"%(self.ident, url, dest)
-        urllib.urlretrieve(url, dest)
-
-def download(urls, destfolder, numthreads=4):
-    queue = Queue()
-    for url in urls:
-        queue.put(url)
-
-    for i in range(numthreads):
-        t = DownloadThread(queue, destfolder)
-        t.start()
-
-    queue.join()
-
-if __name__ == "__main__":
-    download(sys.argv[1:], "/tmp")
-    
-    
-    
     
     
     

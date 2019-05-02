@@ -1,59 +1,43 @@
 # Load libraries
 import os
 import ta
-import sys
-import pandas as pd
 import warnings
-from sklearn.tree import DecisionTreeClassifier # Import Decision Tree Classifier
-#from sklearn.model_selection import train_test_split # Import train_test_split function
-from sklearn import metrics #Import scikit-learn metrics module for accuracy calculation
 import numpy as np
-from sklearn.tree import export_graphviz
-from sklearn.externals.six import StringIO  
-from IPython.display import Image  
-import pydotplus
-import matplotlib.pyplot as plt                          # analysis:ignore
+import pandas as pd
+from sklearn import metrics
+import matplotlib.pyplot as plt                              # analysis:ignore
 from sklearn.ensemble import RandomForestClassifier
-import seaborn as sns
 
 #%matplotlib qt
 #%matplotlib inline
-
 warnings.filterwarnings("ignore")
 
-quandl_bse = True
-filename = os.path.join('data','QUANDL_ANDHRABANK.csv')
-#filename = os.path.join('data','KILITCH.csv')
+filename = os.path.join('data','q_andhra.csv')
 m = 1
 past = 1
 init = m
 chps = 1
-chpi = 1
+chpi = 10 # 1 %
 limit_chp = 30
 debug = False
-#for m in range(init,past+1):
-for chpi in range(chps,limit_chp+1):
+for m in range(init,past+1):
+#for chpi in range(chps,limit_chp+1):
     df = pd.read_csv(filename)
-    volumeColumnName = 'Total Traded Quantity'
-    opriceColumnName = 'Open Price'
-    hpriceColumnName = 'High Price'
-    lpriceColumnName = 'Low Price'
-    cpriceColumnName = 'Close Price'
-    if volumeColumnName not in df.columns :
-        # For some quandl BSE.csv its 'No. of Shares'
-        volumeColumnName = 'No. of Shares'
-        opriceColumnName = 'Open'
-        hpriceColumnName = 'High'
-        lpriceColumnName = 'Low'
-        cpriceColumnName = 'Close'    
-    prices = [opriceColumnName,hpriceColumnName,lpriceColumnName,cpriceColumnName]
+    volumeColumnName = 'No. of Shares'
+    opriceColumnName = 'Open'
+    hpriceColumnName = 'High'
+    lpriceColumnName = 'Low'
+    cpriceColumnName = 'Close'    
+    prices = [opriceColumnName,
+              hpriceColumnName,
+              lpriceColumnName,
+              cpriceColumnName]
     others = [volumeColumnName]
     
     #prices = ['Open Price','High Price','Low Price','Close Price'] 
-    df = df[prices+others]
-    if quandl_bse :
-        df = df.iloc[::-1] # Reverse
-        df = df.reset_index(drop=True) #Re-Index
+    df = df[prices+others]    
+    df = df.iloc[::-1] # Reverse
+    df = df.reset_index(drop=True) #Re-Index
     print("==================================================================")    
     #print("m",m)    
     #print("chp",chp)        
@@ -154,7 +138,7 @@ for chpi in range(chps,limit_chp+1):
         fn = np.delete(nfc_names, pruned_features, None)
         
         len_data = len(xn)
-        train_percentage = 85
+        train_percentage = 95
         split_index = (len_data * train_percentage)//100
         xtrain = xn[:split_index]
         ytrain = y[:split_index]
@@ -198,7 +182,7 @@ for chpi in range(chps,limit_chp+1):
     
     xbound = 100    # Limiting Pyplot
     
-    '''
+    
     limit = min(xbound,len(ytests))    
     fig = plt.figure(figsize=(10, 8))
     ax = fig.gca()
@@ -227,7 +211,7 @@ for chpi in range(chps,limit_chp+1):
     plt.legend()
     plt.grid()
     plt.show()
-    '''
+    
     
 
     print("M                \t",m)
