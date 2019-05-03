@@ -1,28 +1,23 @@
 # Load libraries
 import os
 import ta
+import Helpers
 import warnings
+import datetime
 import numpy as np
 import pandas as pd
+import sqlite3 as sql
 from sklearn import metrics
-import matplotlib.pyplot as plt                              # analysis:ignore
 from sklearn.ensemble import RandomForestClassifier
-
-#%matplotlib qt
-#%matplotlib inline
 warnings.filterwarnings("ignore")
 
-filename = os.path.join('data','q_andhra.csv')
-m = 1
-past = 1
-init = m
-chps = 1
-chpi = 10 # 1 %
-limit_chp = 30
-debug = False
-for m in range(init,past+1):
-#for chpi in range(chps,limit_chp+1):
-    df = pd.read_csv(filename)
+def analysis(code,chp):    
+    m = 1    
+    debug = False    
+    database_path=os.path.join('database','main.db')
+    conn=sql.connect(database_path)    
+    df = pd.read_sql_query('select * from '+code, conn)    
+    conn.close()
     volumeColumnName = 'No. of Shares'
     opriceColumnName = 'Open'
     hpriceColumnName = 'High'
@@ -33,14 +28,13 @@ for m in range(init,past+1):
               lpriceColumnName,
               cpriceColumnName]
     others = [volumeColumnName]
-    
-    #prices = ['Open Price','High Price','Low Price','Close Price'] 
     df = df[prices+others]    
-    df = df.iloc[::-1] # Reverse
-    df = df.reset_index(drop=True) #Re-Index
-    print("==================================================================")    
-    #print("m",m)    
-    #print("chp",chp)        
+    size = df.shape[0]
+    last_date = df['Date'][size-1]
+    last_close= df['Close'][size-1]
+    last_date = datetime.datetime.strptime(last_date, "%Y-%m-%d").date()    
+    last_date_str = last_date.strftime("%d %b %Y")
+    print("==================================================================")            
     t = []
     y = []
     for i in range(m,df.shape[0]):
@@ -52,17 +46,15 @@ for m in range(init,past+1):
         t.append(f)    
         #aprice = df['Average Price'][i]        
         cprice = df[cpriceColumnName][i]
-        oprice = df[opriceColumnName][i]        
-        hprice = df[hpriceColumnName][i]
+        oprice = df[opriceColumnName][i]                
         eff = cprice
         diff =  eff - oprice
         change = (diff*100)/oprice
-        if eff > oprice and change > (chpi/10) :
+        if eff > oprice and change > chp :
             y.append(1)
         else :
             y.append(0)    
-    
-    normalize = False
+        
     x = []    
     for r in t :    
         cp = []
@@ -115,9 +107,6 @@ for m in range(init,past+1):
     
     datahealth = np.count_nonzero(y)/len(y)    
     
-    if normalize :
-        x = x/10 # Normalization :P
-    
     fc = len(x[0])
     #print("Begin Features",fc)
     fc_names = []
@@ -130,6 +119,7 @@ for m in range(init,past+1):
     best_safe_acc = 0
     best_win_pred = 0
     best_feature_count = 0
+    best_xtests_last = []
     pruned_features = []
     clf = None
     best_clf = None
@@ -138,7 +128,7 @@ for m in range(init,past+1):
         fn = np.delete(nfc_names, pruned_features, None)
         
         len_data = len(xn)
-        train_percentage = 95
+        train_percentage = 95 # scope for improvement by tuning here
         split_index = (len_data * train_percentage)//100
         xtrain = xn[:split_index]
         ytrain = y[:split_index]
@@ -149,16 +139,7 @@ for m in range(init,past+1):
         clf.fit(xtrain,ytrain)                
         feature_imp = pd.Series(clf.feature_importances_,index=fn).sort_values(ascending=False)        
         fk = int(feature_imp.tail(1).index[0])
-        pruned_features.append(fk)
-            
-        '''
-        sns.barplot(x=feature_imp, y=feature_imp.index)        
-        plt.xlabel('Feature Importance Score')
-        plt.ylabel('Features')
-        plt.title("Visualizing Important Features")
-        plt.legend()
-        plt.show()    
-        '''
+        pruned_features.append(fk)            
         
         y_pred=clf.predict(xtests)
     
@@ -178,52 +159,21 @@ for m in range(init,past+1):
             best_feature_count = fc-(len(pruned_features)-1)
             
                 
-    clf = best_clf # Restoring Best Model
-    
-    xbound = 100    # Limiting Pyplot
-    
-    
-    limit = min(xbound,len(ytests))    
-    fig = plt.figure(figsize=(10, 8))
-    ax = fig.gca()
-    #ax.set_xticks(np.arange(0, 50, 1))
-    #ax.set_yticks(np.arange(0, 2, 0.1))
-    plt.plot(ytests[0:limit],label='Actual')
-    plt.plot(y_pred[0:limit],label='Predictions')
-    plt.legend()
-    plt.grid()
-    plt.show()
-
-
-    limit = min(xbound,len(ytests))
-    safties = []
-    for yi in range(limit):
-        if y_pred[yi] == 1 and ytests[yi] == 0: #false Positives
-            safties.append(0)
-        else:
-            safties.append(1)
-            
-    fig = plt.figure(figsize=(10, 8))
-    ax = fig.gca()
-    #ax.set_xticks(np.arange(0, 50, 1))
-    #ax.set_yticks(np.arange(0, 2, 0.1))
-    plt.plot(safties,label='Safties')        
-    plt.legend()
-    plt.grid()
-    plt.show()
-    
+    clf = best_clf # Restoring Best Model        
+    y_pred=clf.predict(xtests)
+    yfinal = 0
+    return [chp,datahealth,best_acc,best_safe_acc,best_win_pred,yfinal]
     
 
-    print("M                \t",m)
-    print("Fc               \t",best_feature_count)    
-    print("Chp              \t",chpi/10)
-    print("Health           \t",datahealth)    
-    print("Best Accuracy    \t",best_acc)
-    print("Safety Accuracy  \t",best_safe_acc)
-    print("Predicted Win Pct\t",best_win_pred)
+# Main of Kowaski  
+chp = 1
+results = []
+metadata = Helpers.MetaData()
+codes_names = metadata.healthy_codes
+for (code,name) in codes_names.items():
+    result = analysis(code,chp)
+    results.append(result)
     
-    
-
 
 
 
