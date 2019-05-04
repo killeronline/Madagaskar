@@ -12,7 +12,10 @@ from sklearn.ensemble import RandomForestClassifier
 #%matplotlib inline
 warnings.filterwarnings("ignore")
 
-filename = os.path.join('data','q_andhra.csv')
+# 524500 KILITCH
+# BOM517044 INTERNATION DATA MANAGEMENT
+
+filename = os.path.join('datasets','BOM517044.csv')
 m = 1
 past = 1
 init = m
@@ -145,7 +148,7 @@ for m in range(init,past+1):
         xtests = xn[split_index:]
         ytests = y[split_index:]    
                   
-        clf=RandomForestClassifier(n_estimators=100,n_jobs=-1,random_state=1)        
+        clf=RandomForestClassifier(n_estimators=1000,n_jobs=-1,random_state=1)        
         clf.fit(xtrain,ytrain)                
         feature_imp = pd.Series(clf.feature_importances_,index=fn).sort_values(ascending=False)        
         fk = int(feature_imp.tail(1).index[0])

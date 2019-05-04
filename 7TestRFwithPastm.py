@@ -1,41 +1,41 @@
 # Load libraries
 import os
 import ta
-import Helpers
 import warnings
 import datetime
 import numpy as np
 import pandas as pd
-import sqlite3 as sql
 from sklearn import metrics
+import matplotlib.pyplot as plt                              # analysis:ignore
 from sklearn.ensemble import RandomForestClassifier
+
+#%matplotlib qt
+#%matplotlib inline
 warnings.filterwarnings("ignore")
-    
-def analysis(code,m,chp,est):
-    st = datetime.datetime.now()    
-    database_path=os.path.join('database','main.db')
-    conn=sql.connect(database_path)    
-    df = pd.read_sql_query('select * from '+code, conn)    
-    conn.close()
+
+# 524500 KILITCH
+# BOM517044 INTERNATION DATA MANAGEMENT
+
+filename = os.path.join('data','BOM517044.csv')
+
+def compute(filename,m,chp,est):
+    st = datetime.datetime.now()
+    df = pd.read_csv(filename)
     volumeColumnName = 'No. of Shares'
     opriceColumnName = 'Open'
     hpriceColumnName = 'High'
     lpriceColumnName = 'Low'
-    cpriceColumnName = 'Close' 
-    ddates = ['Date']
+    cpriceColumnName = 'Close'    
     prices = [opriceColumnName,
               hpriceColumnName,
               lpriceColumnName,
               cpriceColumnName]
     others = [volumeColumnName]    
-    df = df[ddates+prices+others]        
+    df = df[prices+others]    
+    df = df.iloc[::-1] # Reverse
+    df = df.reset_index(drop=True) #Re-Index    
     print("==================================================================")        
     n = df.shape[0]
-    last_date = df['Date'][n-1]
-    last_close= df['Close'][n-1]
-    last_date = datetime.datetime.strptime(last_date, "%Y-%m-%d").date()    
-    last_date_str = last_date.strftime("%d %b %Y")
-    df = df[prices+others]
     
     y = []
     for i in range(m,n):    
@@ -115,13 +115,14 @@ def analysis(code,m,chp,est):
         feature_i.extend(x_talib_stats[base_i])
         x.append(feature_i)
 
-    x = np.array(x).astype(float)
-    y = np.array(y).astype(float)    
-    
     lastXN = len(x)-1
     lastFeature = x[lastXN] # The Enigma Key
-    lastFeature = lastFeature.reshape(1,len(lastFeature))
-    x = x[:lastXN] # Dropping Last Feature (Key)                    
+    x = x[:lastXN] # Dropping Last Feature (Key)
+    
+    x = np.array(x).astype(float)
+    y = np.array(y).astype(float)
+    
+    datahealth = np.count_nonzero(y)/len(y)        
     
     fc = len(x[0])
     #print("Begin Features",fc)
@@ -137,7 +138,8 @@ def analysis(code,m,chp,est):
     best2 = 0
     best3 = 0
     best_acc = 0
-    best_prec = 0    
+    best_prec = 0
+    best_safe_acc = 0    
     best_feature_count = 0
     best_predictions = []
     pruned_features = []
@@ -148,9 +150,7 @@ def analysis(code,m,chp,est):
     split_index = (len_data * train_percentage)//100
     ytrain = y[:split_index]
     ytests = y[split_index:]
-    yfinal = 0  # fail safe declaration
-    ybear= 0    # sluggish
-    ybull= 0    # agreesive
+    ntests = len(ytests)
     while len(pruned_features) < fc : 
         #print("Fc",fc,"Pruned",len(pruned_features))                   
         xn = np.delete(x, pruned_features, axis=1)        
@@ -163,7 +163,17 @@ def analysis(code,m,chp,est):
         clf.fit(xtrain,ytrain)                
         feature_imp = pd.Series(clf.feature_importances_,index=fn).sort_values(ascending=False)        
         fk = int(feature_imp.tail(1).index[0])
-        pruned_features.append(fk)        
+        pruned_features.append(fk)
+            
+        '''
+        sns.barplot(x=feature_imp, y=feature_imp.index)        
+        plt.xlabel('Feature Importance Score')
+        plt.ylabel('Features')
+        plt.title("Visualizing Important Features")
+        plt.legend()
+        plt.show()    
+        '''
+        
         y_pred=clf.predict(xtests)        
         cur3 = fc-(len(pruned_features)-1)
         cur1 = metrics.precision_score(ytests, y_pred)
@@ -181,19 +191,9 @@ def analysis(code,m,chp,est):
             best_clf = clf
             best_acc = cur_acc            
             best_prec = cur_prec
-            best_predictions = y_pred            
+            best_predictions = y_pred
+            best_safe_acc = (ntests-mfp)/ntests            
             best_feature_count = fc-(len(pruned_features)-1)                        
-            # Making Revised Prediction            
-            xfinal = lastFeature
-            lenPrune = len(pruned_features)
-            if lenPrune > 0 :
-                adjustedPrunedFeatures = pruned_features[:lenPrune-1]
-                xfinal = np.delete(xfinal, adjustedPrunedFeatures, axis=1)
-                            
-            yfinal=clf.predict(xfinal)
-            yprobs=clf.predict_proba(xfinal)
-            ybear= yprobs[0][0]
-            ybull= yprobs[0][1]
             print("*")
             print("Precision  \t",cur1)
             print("'Accuracy  \t",cur2)
@@ -201,32 +201,72 @@ def analysis(code,m,chp,est):
             
 
     y_pred = best_predictions            
-    clf = best_clf  # Restoring Best Model                
+    clf = best_clf  # Restoring Best Model    
+    xbound = 200    # Limiting Pyplot    
+    limit = min(xbound,len(ytests))    
+    fig = plt.figure(figsize=(10, 8))
+    ax = fig.gca()
+    #ax.set_xticks(np.arange(0, 50, 1))
+    #ax.set_yticks(np.arange(0, 2, 0.1))
+    plt.plot(ytests[0:limit],label='Actual')
+    plt.plot(y_pred[0:limit],label='Predictions')
+    plt.legend()
+    plt.grid()
+    plt.show()
+
+
+    limit = min(xbound,len(ytests))
+    safties = []
+    for yi in range(limit):
+        if y_pred[yi] == 1 and ytests[yi] == 0: #false Positives
+            safties.append(0)
+        else:
+            safties.append(1)
+            
+    fig = plt.figure(figsize=(10, 8))
+    ax = fig.gca()
+    #ax.set_xticks(np.arange(0, 50, 1))
+    #ax.set_yticks(np.arange(0, 2, 0.1))
+    plt.plot(safties,label='Safties')        
+    plt.legend()
+    plt.grid()
+    plt.show()
+    
+    
+    print("Health           \t",datahealth)    
+    
     print("M                \t",m)
     print("Fc               \t",best_feature_count)    
     print("Chp              \t",chp)    
     print("Accuracy         \t",best_acc)
     print("Precision        \t",best_prec)
     print("Estimators       \t",est)
-    print("Company Code     \t",code)        
+    #print("Safety Accuracy  \t",best_safe_acc)    
     et = datetime.datetime.now()
     tt = (et-st).seconds    
     print("\nTook",tt//60,"Mins",tt%60,"Seconds")
     
-    return [best_prec,best_acc,last_close,last_date_str,ybear,ybull,yfinal]    
-
-# Main of Kowaski  
+    
+    
 m = 4
 chp = 2
-est = 55
-results = []
-metadata = Helpers.MetaData()
-codes_names = metadata.healthy_codes
-for (code,name) in codes_names.items():
-    result = analysis(code,m,chp,est)
-    results.append(result)
-    break
+#for m in range(4,5): # 4
+    #for chp in range(2,5): # 2,3,4
+        #compute(filename,m,chp)
+
+for e in range(51,55,1):
+    compute(filename,m,chp,e)
+        
+# Uptrend Precision from m = 3 -> 4
+# Uptrend Accuracy with chp = 1 -> 5
+# With m = 4 and chp : 2->3->4, model is reducing mfn ( so label health is -ve)
+# Trying with more trees, accuracy decreasing strange at 300,500
+# at 50 got 3 spikes with prec = 0 , acc = 0.8756
+# default 100 is also doing decent with same accuracy
     
+
+        
+
 
 
 
