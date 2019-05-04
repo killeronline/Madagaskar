@@ -1,7 +1,9 @@
 # Load libraries
 import os
 import ta
+import csv
 import Helpers
+import Mailers
 import warnings
 import datetime
 import numpy as np
@@ -114,9 +116,15 @@ def analysis(code,m,chp,est):
         feature_i = x_price_cmp[base_i]
         feature_i.extend(x_talib_stats[base_i])
         x.append(feature_i)
-
+        
     x = np.array(x).astype(float)
     y = np.array(y).astype(float)    
+    
+    # Remove Some Data (Ancestors) Which could be monotonous
+    # like SMA(30) and EMA(20) which dont have good values till index30
+    #ancestors = 30    
+    #x = x[ancestors:]
+    #y = y[ancestors:]    
     
     lastXN = len(x)-1
     lastFeature = x[lastXN] # The Enigma Key
@@ -132,12 +140,14 @@ def analysis(code,m,chp,est):
     
     cur1 = 0
     cur2 = 0
-    cur3 = 0
+    cur9 = 0    
     best1 = 0    
     best2 = 0
-    best3 = 0
+    best9 = 0    
     best_acc = 0
     best_prec = 0    
+    best_recall = 0
+    best_f1score = 0
     best_feature_count = 0
     best_predictions = []
     pruned_features = []
@@ -160,72 +170,127 @@ def analysis(code,m,chp,est):
         xtests = xn[split_index:]        
                   
         clf=RandomForestClassifier(n_estimators=est,n_jobs=-1,random_state=1)        
-        clf.fit(xtrain,ytrain)                
-        feature_imp = pd.Series(clf.feature_importances_,index=fn).sort_values(ascending=False)        
-        fk = int(feature_imp.tail(1).index[0])
-        pruned_features.append(fk)        
-        y_pred=clf.predict(xtests)        
-        cur3 = fc-(len(pruned_features)-1)
-        cur1 = metrics.precision_score(ytests, y_pred)
-        cur2 = metrics.accuracy_score(ytests, y_pred)        
+        clf.fit(xtrain,ytrain)                        
+        y_pred=clf.predict(xtests)                
+        # cur1 and cur2 can be changed to find optimal models
+        f1avg = 'binary'
+        cur9 = len(pruned_features)
+        cpfc = len(pruned_features)
+        cur1 = metrics.precision_score(ytests, y_pred)        
+        #cur2 = metrics.f1_score(ytests, y_pred, average=f1avg)        
+        cur2 = metrics.accuracy_score(ytests, y_pred)    
         cur_acc = metrics.accuracy_score(ytests, y_pred)    
         cur_prec = metrics.precision_score(ytests, y_pred)    
+        cur_recall = metrics.recall_score(ytests, y_pred)    
+        cur_f1score = metrics.f1_score(ytests, y_pred, average=f1avg)
         mtn, mfp, mfn, mtp = metrics.confusion_matrix(ytests, y_pred).ravel()                                
         prisma1 = (cur1 > best1)
         prisma2 = (cur1==best1 and cur2 > best2)
-        prisma3 = (cur1==best1 and cur2 == best2 and cur3 > best3)
+        prisma3 = (cur1==best1 and cur2 == best2 and cur9 > best9)
         if  prisma1 or prisma2 or prisma3 :            
             best1 = cur1
             best2 = cur2
-            best3 = cur3
+            best9 = cur9            
             best_clf = clf
             best_acc = cur_acc            
-            best_prec = cur_prec
-            best_predictions = y_pred            
-            best_feature_count = fc-(len(pruned_features)-1)                        
+            best_prec = cur_prec            
+            best_recall = cur_recall
+            best_f1score = cur_f1score
+            best_predictions = y_pred           
+            best_feature_count = fc-cpfc                        
+            
             # Making Revised Prediction            
-            xfinal = lastFeature
-            lenPrune = len(pruned_features)
-            if lenPrune > 0 :
-                adjustedPrunedFeatures = pruned_features[:lenPrune-1]
-                xfinal = np.delete(xfinal, adjustedPrunedFeatures, axis=1)
+            xfinal = lastFeature            
+            if cpfc > 0 :                
+                xfinal = np.delete(xfinal, pruned_features, axis=1)
                             
             yfinal=clf.predict(xfinal)
             yprobs=clf.predict_proba(xfinal)
             ybear= yprobs[0][0]
-            ybull= yprobs[0][1]
-            print("*")
-            print("Precision  \t",cur1)
-            print("'Accuracy  \t",cur2)
+            ybull= yprobs[0][1]            
+            '''
+            print("F1         \t",best_f1score)
+            print("Recall     \t",best_recall)
+            print("Precision  \t",best_prec)
+            print("'Accuracy  \t",best_acc)            
             print("'Features  \t",best_feature_count,"/",fc)
+            print("*")
+            '''
+            
+        # Pruning feature space
+        feature_imp = pd.Series(clf.feature_importances_,index=fn).sort_values(ascending=False)        
+        prunespeed = 5
+        if (fc-cpfc) > prunespeed :
+            fkmore = feature_imp.tail(prunespeed).index
+            for fkpi in range(prunespeed):                
+                fk = int(fkmore[fkpi])
+                pruned_features.append(fk)
+        else :
+            break
             
 
     y_pred = best_predictions            
     clf = best_clf  # Restoring Best Model                
-    print("M                \t",m)
-    print("Fc               \t",best_feature_count)    
+    print("M                \t",m)    
     print("Chp              \t",chp)    
+    print("F1               \t",best_f1score)
+    print("Recall           \t",best_recall)
     print("Accuracy         \t",best_acc)
     print("Precision        \t",best_prec)
     print("Estimators       \t",est)
     print("Company Code     \t",code)        
+    print("Feature Count    \t",best_feature_count)
     et = datetime.datetime.now()
     tt = (et-st).seconds    
-    print("\nTook",tt//60,"Mins",tt%60,"Seconds")
-    
-    return [best_prec,best_acc,last_close,last_date_str,ybear,ybull,yfinal]    
+    timetaken = str(tt//60)+' Mins '+str(tt%60)+' Seconds'
+    print('\n'+timetaken)
+
+    result = []    
+    used_params = [code,m,chp,est]
+    time_metric = [timetaken,tt]
+    best_metric = [best_prec,best_acc,best_recall,best_f1score]
+    best_output = [last_close,last_date_str,ybull,yfinal[0]]    
+    result.extend(used_params)
+    result.extend(time_metric)
+    result.extend(best_metric)
+    result.extend(best_output)    
+    return result
 
 # Main of Kowaski  
 m = 4
 chp = 2
-est = 55
-results = []
+est = 100
+headers1 = ['Code','PastDays','ChangeInPercentage','Estimators']
+headers2 = ['Total Time Taken','Seconds']
+headers3 = ['Precision','Accuracy','Recall','F1Score']
+headers4 = ['LastClose','LastDate','Bull','Prediction']
+headers5 = ['Name','Code']
+headers = headers1 + headers2 + headers3 + headers4 +headers5
+results = [headers]
 metadata = Helpers.MetaData()
 codes_names = metadata.healthy_codes
+c = 0
 for (code,name) in codes_names.items():
     result = analysis(code,m,chp,est)
-    results.append(result)
-    break
+    results.append(result+[name,code])    
+    c += 1
+
+if not os.path.exists('results'):
+    os.makedirs('results')
+
+finishdatetime = datetime.datetime.now()
+resultfilename = finishdatetime.strftime('%d_%b_%Y_%H_%M_%S_%f')+'.csv'
+resultfilepath = os.path.join('results',resultfilename)    
+with open(resultfilepath,'w+',newline='') as csv_file:
+    csvWriter = csv.writer(csv_file,delimiter=',')
+    csvWriter.writerows(results)
+    
+mailer = Mailers.MailClient()
+mailer.SendEmail(resultfilename,resultfilename)
+
+
+
+        
     
 
 

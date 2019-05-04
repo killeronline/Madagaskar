@@ -2,4 +2,5 @@ bhav/*
 data/*
 datasets/*
 database/*
+meta/*.txt
 __pycache__/*
