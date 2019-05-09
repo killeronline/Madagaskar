@@ -320,7 +320,7 @@ if proceed:
         
         st = datetime.datetime.now()                        
             
-        rfc = RandomForestClassifier(n_estimators=1000,
+        rfc = RandomForestClassifier(n_estimators=est,
                                      class_weight='balanced',
                                      criterion='gini',
                                      random_state=1,
