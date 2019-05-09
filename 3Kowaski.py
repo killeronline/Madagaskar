@@ -259,7 +259,7 @@ def analysis(code,m,chp,est):
 # Main of Kowaski  
 m = 4
 chp = 2
-est = 100
+est = 1000
 headers1 = ['Code','PastDays','ChangeInPercentage','Estimators']
 headers2 = ['Total Time Taken','Seconds']
 headers3 = ['Precision','Accuracy','Recall','F1Score']
