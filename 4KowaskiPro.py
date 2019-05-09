@@ -318,26 +318,16 @@ if proceed:
         xtrain = xn[:split_index]        
         xtests = xn[split_index:]
         
-        st = datetime.datetime.now()                
-        FirstChoice = True        
-        if FirstChoice :
-            #rfc = SVC()            
-            rfc = RandomForestClassifier(n_estimators=1000,
-                                         n_jobs=-1,
-                                         criterion='gini',
-                                         class_weight='balanced',
-                                         random_state=1)
+        st = datetime.datetime.now()                        
             
-        else :                    
-            rfc = RandomForestClassifier(n_estimators=esti,                                         
-                                         random_state=1,                                         
-                                         criterion='gini',
-                                         min_samples_split=0.04,
-                                         min_samples_leaf=0.011,
-                                         max_features='auto',
-                                         class_weight='balanced',
-                                         verbose=False,
-                                         n_jobs=-1)                     
+        rfc = RandomForestClassifier(n_estimators=1000,
+                                     class_weight='balanced',
+                                     criterion='gini',
+                                     random_state=1,
+                                     verbose=False,
+                                     n_jobs=-1)
+            
+
       
         
         rfc.fit(xtrain,ytrain)
