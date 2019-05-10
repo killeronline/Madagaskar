@@ -12,7 +12,7 @@ import Helpers
 import datetime
 import pandas as pd
 
-def get_health(filename):    
+def get_health(filename,percent):    
     try :
         df = pd.read_csv(filename)
         volumeColumnName = 'No. of Shares'
@@ -28,16 +28,16 @@ def get_health(filename):
         
         df = df[prices+others]    
         df = df.iloc[::-1]
-        df = df.reset_index(drop=True)
+        df = df.reset_index(drop=True) # Csv Files
         # Cleaning Bad Data
         df = df[df[volumeColumnName]>0]
-        df = df.reset_index(drop=True) #Re-Index
+        df = df.reset_index(drop=True) # Re-Index
         
         p = 0
+        n = 0
         c = 0
-        percent = 2
-        for i in range(1,df.shape[0]):            
-            c += 1
+        
+        for i in range(1,df.shape[0]):                        
             cprice = df[cpriceColumnName][i]
             oprice = df[opriceColumnName][i]            
             eff = cprice
@@ -45,32 +45,55 @@ def get_health(filename):
             change = (diff*100)/oprice
             if eff > oprice and change > percent :
                 p += 1
-        return [p,c]    
+                c += 1
+            elif eff < oprice and change < -percent :
+                n += 1
+                c += 1
+        return [p,n,c]    
     except :
-        return [0,1]
+        return [0,0,1]
         
 metadata = Helpers.MetaData()
 codes = metadata.codes
 chn = []
 st = datetime.datetime.now()
+proc = 0
+if len(sys.argv) > 1 :
+    proc = int(sys.argv[1]) # One among i%9
+    print("Running Evaluation Proc",proc)
 i = 0
 for (code,name) in codes.items() :    
     i += 1
-    filename = os.path.join('datasets',code+'.csv')    
-    if os.path.exists(filename):        
-        p,c = get_health(filename)
-        if c > 0 :
-            pt = p/c
-        else :
-            pt = 0
-        chn.append(str(i)+","+code+","+name+","+str(pt)+","+str(c)+"\n")      
+    if i%9 == proc :
+        filename = os.path.join('datasets',code+'.csv')    
+        print('Analysing i',i,'code',code)
+        if os.path.exists(filename):    
+            pi = []
+            ni = []
+            ci = []
+            for percentage in range(1,11):
+                p,n,c = get_health(filename,percentage)
+                if c > 0 :
+                    pt = p/c
+                    nt = n/c
+                else :
+                    pt = 0
+                    nt = 0
+                pi.append(pt)
+                ni.append(nt)
+                ci.append(c)
+            line = str(i)+','+code+','+name+','
+            lenPI = len(pi)
+            for j in range(lenPI):
+                line += str(pi[j])+','+str(ni[j])+','+str(ci[j])+','            
+            chn.append(line+'\n')
         
 et = datetime.datetime.now()        
 tt = (et-st).seconds
 print("Completed",tt)  
         
 contents = ''.join(chn)
-f = open('meta\health_pro.csv','w')        
+f = open('meta\health'+str(proc)+'.csv','w')
 f.write(contents)
 f.close()
 
