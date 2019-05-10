@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Thu May  9 02:32:24 2019
+
+@author: VAIO
+"""
+
 # Load libraries
 import os
 import sys
@@ -46,31 +53,24 @@ metadata = Helpers.MetaData()
 codes = metadata.codes
 chn = []
 st = datetime.datetime.now()
-proc = 0
-if len(sys.argv) > 1 :
-    proc = int(sys.argv[1]) # One among i%5
-    print("Running Evaluation Proc",proc)
 i = 0
 for (code,name) in codes.items() :    
     i += 1
-    if i%5 == proc :        
-        filename = os.path.join('datasets',code+'.csv')    
-        if os.path.exists(filename):
-            if i%100 == 0 :
-                print(i,"Evaluating",code)
-            p,c = get_health(filename)
-            if c > 0 :
-                pt = p/c
-            else :
-                pt = 0
-            chn.append(str(i)+","+code+","+name+","+str(pt)+","+str(c)+"\n")      
+    filename = os.path.join('datasets',code+'.csv')    
+    if os.path.exists(filename):        
+        p,c = get_health(filename)
+        if c > 0 :
+            pt = p/c
+        else :
+            pt = 0
+        chn.append(str(i)+","+code+","+name+","+str(pt)+","+str(c)+"\n")      
         
 et = datetime.datetime.now()        
 tt = (et-st).seconds
 print("Completed",tt)  
         
 contents = ''.join(chn)
-f = open('meta\health'+str(proc)+'.csv','w')        
+f = open('meta\health_pro.csv','w')        
 f.write(contents)
 f.close()
 
