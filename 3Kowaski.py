@@ -32,6 +32,10 @@ def analysis(code,m,chp,est):
     others = [volumeColumnName]    
     df = df[ddates+prices+others]        
     print("==================================================================")        
+    # Cleaning Data
+    # Remove All Non Traded Days ( Volume = 0 )
+    df = df[df[volumeColumnName]>0]
+    df = df.reset_index(drop=True)
     n = df.shape[0]
     last_date = df['Date'][n-1]
     last_close= df['Close'][n-1]
@@ -46,10 +50,12 @@ def analysis(code,m,chp,est):
         eff = cprice
         diff =  eff - oprice
         change = (diff*100)/oprice
-        if eff > oprice and change > chp :
+        if eff > oprice and change > chp : # Extreme Positives
             y.append(1)
+        elif eff < oprice and change < (-chp) : # Extreme Negatives
+            y.append(0)
         else :
-            y.append(0)    
+            y.append(-1) # Mixed Data Point      
             
     # Include feature(n) : for Last Sample (which is utmost needed)
     past_prices_list = []
@@ -131,6 +137,17 @@ def analysis(code,m,chp,est):
     lastFeature = lastFeature.reshape(1,len(lastFeature))
     x = x[:lastXN] # Dropping Last Feature (Key)                    
     
+    # Extreme Trimming
+    extreme_x = []
+    extreme_y = []
+    lenNY = len(y)
+    for i in range(lenNY):
+        if y[i] >= 0 :
+            extreme_x.append(x[i])
+            extreme_y.append(y[i])
+    x = extreme_x
+    y = extreme_y
+    
     fc = len(x[0])
     #print("Begin Features",fc)
     fc_names = []
@@ -154,13 +171,12 @@ def analysis(code,m,chp,est):
     clf = None
     best_clf = None
     len_data = len(x)
-    train_percentage = 75
+    train_percentage = 50
     split_index = (len_data * train_percentage)//100
     ytrain = y[:split_index]
     ytests = y[split_index:]
-    yfinal = 0  # fail safe declaration
-    ybear= 0    # sluggish
-    ybull= 0    # agreesive
+    yfinal = 0  # fail safe declaration    
+    ybull= 0    # agreesive bullishness
     while len(pruned_features) < fc : 
         #print("Fc",fc,"Pruned",len(pruned_features))                   
         xn = np.delete(x, pruned_features, axis=1)        
@@ -169,7 +185,12 @@ def analysis(code,m,chp,est):
         xtrain = xn[:split_index]        
         xtests = xn[split_index:]        
                   
-        clf=RandomForestClassifier(n_estimators=est,n_jobs=-1,random_state=1)        
+        clf=RandomForestClassifier(n_estimators=est,
+                                     class_weight='balanced',
+                                     criterion='gini',
+                                     random_state=1,
+                                     verbose=False,
+                                     n_jobs=-1)
         clf.fit(xtrain,ytrain)                        
         y_pred=clf.predict(xtests)                
         # cur1 and cur2 can be changed to find optimal models
@@ -205,8 +226,7 @@ def analysis(code,m,chp,est):
                 xfinal = np.delete(xfinal, pruned_features, axis=1)
                             
             yfinal=clf.predict(xfinal)
-            yprobs=clf.predict_proba(xfinal)
-            ybear= yprobs[0][0]
+            yprobs=clf.predict_proba(xfinal)            
             ybull= yprobs[0][1]            
             '''
             print("F1         \t",best_f1score)

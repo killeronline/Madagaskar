@@ -12,8 +12,17 @@ Om Sai Ram
 #2 : Proceed to selective download ( from meta\healths.csv which enlist top 50)
  
 '''
+# Execute in CMD
+# set http_proxy=http://username:password@your_proxy:your_port
+# set https_proxy=https://username:password@your_proxy:your_port
+# pip --proxy http://11.164.4.21:8080 install
+# set http_proxy=http://kurellas:password@11.164.4.21:8080
+# set https_proxy=http://kurellas:password@11.164.4.21:8080
+
+
 def download(code,destfilepath,authkey):    
-    url = "https://www.quandl.com/api/v3/datasets/BSE/"+code+".csv?api_key="+authkey            
+    url = "https://www.quandl.com/api/v3/datasets/BSE/"+code+".csv?api_key="+authkey  
+    #print(url)          
     wget.download(url,destfilepath)                        
     
 metadata = Helpers.MetaData()
@@ -39,7 +48,7 @@ for code in codes :
             if not os.path.exists(filepath):
                 akey = authkeys[i%3]                    
                 print(str(i)+" Triggered:"+code)
-                download(code,filepath,akey)                        
+                download(code,filepath,akey)                 
             #else :
                 #print("File Exists:"+code)            
                 
