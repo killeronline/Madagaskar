@@ -64,6 +64,7 @@ if proceed:
     y = []
     avg_closes = []
     init_opens = []
+    conc_open_closes = []
     for i in range(m,n-mz+1):
         oprice = df[opriceColumnName][i]
         mz_closes = []
@@ -71,7 +72,8 @@ if proceed:
             base_z = i + mzi
             cprice = df[cpriceColumnName][base_z]
             mz_closes.append(cprice)
-            
+                        
+        conc_open_closes.append([oprice]+mz_closes)
         avg_cprice = sum(mz_closes)/mz            
         avg_closes.append(avg_cprice)
         init_opens.append(oprice)
@@ -106,11 +108,13 @@ if proceed:
     ax.plot(avg_closes,'blue')
     ax.plot(close,'grey')
     ax.plot(close_e,'cyan')
-    ax.plot(close_p,'green')
+    ax.plot(close_p,'green',marker='^')
     ax.plot(close_n,'red')
         
     plt.show()
     '''
+    
+    
         
     # Feature Space 2
     # Considering m = 2, talib values can be compared amongst themselves
@@ -188,12 +192,16 @@ if proceed:
     else :
         print('Error At New Talib')
 
-    
+    # Sum of Talib Candles
+    x_talib_cdl_sum = np.sum(df, axis = 1)
         
+    
     # Combining Feature Spaces
     x = []
-    for i in range(m,n-mz+1):                      
-        vals = df.iloc[i].values
+    for i in range(m,n-mz+1):      
+        vals = []                
+        vals.extend(df.iloc[i].values)        
+        vals.extend([x_talib_cdl_sum[i],1,1,1,1])
         x.append(vals)
     
 
@@ -219,18 +227,37 @@ if proceed:
     
     extreme_x = []
     extreme_y = []
+    extreme_z = []
     lenNY = len(y)
     for i in range(lenNY):
         if y[i] >= 0 :
             extreme_x.append(x[i])
             extreme_y.append(y[i])
+            extreme_z.append(conc_open_closes[i])
             
     x = extreme_x
-    y = extreme_y    
+    y = extreme_y
+    z = extreme_z
     
     
     x = np.array(x).astype(float)
     y = np.array(y).astype(float)
+    z = np.array(z).astype(float)
+    
+    
+    lenY = len(y)
+    count_y_bulls = 0
+    count_y_scnds = 0
+    for i in range(lenY):
+        if y[i] == 1 :
+            count_y_bulls += 1
+            if z[i][1] < z[i][0] : # first day failed
+                count_y_scnds += 1
+           
+    if count_y_bulls > 0 :
+        print('First Bulls    \t',(count_y_bulls-count_y_scnds)/count_y_bulls)
+        print('Second Bulls   \t',count_y_scnds/count_y_bulls)
+        print('Complete Bulls \t',count_y_bulls)
     
     
     ''' Visualize Bullish Sums - Bearish Sums
@@ -253,11 +280,16 @@ if proceed:
     
     '''
     
-    #--------------------------------------------------------------
-    
-    import numpy as np
+    #--------------------------------------------------------------    
     from sklearn.manifold import TSNE    
-    x_clustered = TSNE(n_components=2).fit_transform(x)    
+    
+    tsne = TSNE(n_components=2,
+                #perplexity=10,
+                random_state=1)
+                
+    
+    
+    x_clustered = tsne.fit_transform(x)    
         
     x_clustered = np.array(x_clustered).astype(int)
     
@@ -281,6 +313,7 @@ if proceed:
         
     plt.show()    
     
+    sys.exit()
     #-------------------------------------------------------------
     
     
