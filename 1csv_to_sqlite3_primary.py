@@ -7,9 +7,6 @@ import sqlite3 as sql
 if not os.path.exists('database'):
     os.makedirs('database')
 
-metadata = Helpers.MetaData()
-codes = metadata.healthy_codes.keys()
-
 volumeColumnName = 'No. of Shares'
 opriceColumnName = 'Open'
 hpriceColumnName = 'High'
@@ -26,6 +23,10 @@ select = ddates + prices + others
 
 database_path=os.path.join('database','main.db')
 conn=sql.connect(database_path)
+
+
+metadata = Helpers.MetaData()
+codes = metadata.healthy_codes.keys()
    
 i = 0
 for code in codes:
