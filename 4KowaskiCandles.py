@@ -64,16 +64,16 @@ if proceed:
     y = []
     avg_closes = []
     init_opens = []
-    conc_open_closes = []
+    conc_open_closes = []    
     for i in range(m,n-mz+1):
         oprice = df[opriceColumnName][i]
-        mz_closes = []
+        mz_closes = []        
         for mzi in range(mz):            
             base_z = i + mzi
             cprice = df[cpriceColumnName][base_z]
             mz_closes.append(cprice)
                         
-        conc_open_closes.append([oprice]+mz_closes)
+        conc_open_closes.append([oprice]+mz_closes)                
         avg_cprice = sum(mz_closes)/mz            
         avg_closes.append(avg_cprice)
         init_opens.append(oprice)
@@ -201,7 +201,7 @@ if proceed:
     for i in range(m,n-mz+1):      
         vals = []                
         vals.extend(df.iloc[i].values)        
-        vals.extend([x_talib_cdl_sum[i],1,1,1,1])
+        #vals.extend([x_talib_cdl_sum[i],1,1,1,1])
         x.append(vals)
     
 
@@ -247,18 +247,43 @@ if proceed:
     
     lenY = len(y)
     count_y_bulls = 0
+    count_y_first = 0
     count_y_scnds = 0
+    dbulls = {}
     for i in range(lenY):
         if y[i] == 1 :
             count_y_bulls += 1
-            if z[i][1] < z[i][0] : # first day failed
+            first_bull = z[i][1] - z[i][0]
+            second_bull = z[i][2] - z[i][0]
+            first_bull = (first_bull*100)/z[i][0]
+            second_bull = (second_bull*100)/z[i][0]
+            if first_bull > second_bull :
+                count_y_first += 1
+            else :
                 count_y_scnds += 1
+            
+            sbull = int(second_bull - first_bull)
+            if sbull in dbulls.keys() :
+                dbulls[sbull] += 1
+            else :
+                dbulls[sbull] = 1                                            
            
     if count_y_bulls > 0 :
-        print('First Bulls    \t',(count_y_bulls-count_y_scnds)/count_y_bulls)
+        print('First Bulls    \t',count_y_first/count_y_bulls)
         print('Second Bulls   \t',count_y_scnds/count_y_bulls)
         print('Complete Bulls \t',count_y_bulls)
+
+    dbulls_list_x = []
+    dbulls_list_y = []
+    for i in dbulls.keys() :
+        dbulls_list_x.append(i)
+        dbulls_list_y.append(dbulls[i])
     
+    fig, ax = plt.subplots()                
+    ax.scatter(dbulls_list_x, dbulls_list_y)        
+    plt.show()
+    
+    print('dBulls',dbulls)    
     
     ''' Visualize Bullish Sums - Bearish Sums
     Vs Results
@@ -312,8 +337,7 @@ if proceed:
     ax.scatter(x_clustered_n[:,0],x_clustered_n[:,1],marker='.',c='red')
         
     plt.show()    
-    
-    sys.exit()
+        
     #-------------------------------------------------------------
     
     
@@ -358,8 +382,9 @@ if proceed:
         fc_names.append(fc_i)          
     nfc_names = np.array(fc_names).astype(int)
     
-    pruned_features = []    
-    while len(pruned_features) < fc//4 :        
+    pruned_features = []   
+    prune = False
+    while len(pruned_features) < fc :        
     #for ichmoku in range(1,2):
         print( fc-len(pruned_features),'/',fc)
         
@@ -413,24 +438,28 @@ if proceed:
         # Pruning feature space                
         cpfc = len(pruned_features)
         feature_imp = pd.Series(rfc.feature_importances_,index=fn).sort_values(ascending=False)        
-        prunespeed = 10
-        if (fc-cpfc) > prunespeed :
-            fkmore = feature_imp.tail(prunespeed).index
-            for fkpi in range(prunespeed):                
-                fk = int(fkmore[fkpi])
-                pruned_features.append(fk)
+        prunespeed = 1
+        if prune :
+            if (fc-cpfc) > prunespeed :
+                fkmore = feature_imp.tail(prunespeed).index
+                for fkpi in range(prunespeed):                
+                    fk = int(fkmore[fkpi])
+                    pruned_features.append(fk)
+            else :
+                break        
         else :
-            break        
+            break
     
-    plt.figure(figsize=(20, 16))    
-    plt.plot(metro1,label='F1')    
-    plt.plot(metro2,label='Recall')
-    plt.plot(metro3,label='Accuracy')
-    plt.plot(metro4,label='Precision')
-    plt.legend()
-    plt.grid()
-    plt.show()    
-        
+    if prune :
+        plt.figure(figsize=(20, 16))    
+        plt.plot(metro1,label='F1')    
+        plt.plot(metro2,label='Recall')
+        plt.plot(metro3,label='Accuracy')
+        plt.plot(metro4,label='Precision')
+        plt.legend()
+        plt.grid()
+        plt.show()    
+            
     
 
 
