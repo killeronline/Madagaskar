@@ -1,30 +1,22 @@
 # Load libraries
 import os
+import csv
 import sys                                                    # analysis:ignore
 import talib
+import Helpers
+import Mailers
 import warnings
 import datetime
 import numpy as np
 import pandas as pd
 import sqlite3 as sql
 from sklearn import metrics
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt                               # analysis:ignore
 from sklearn.ensemble import RandomForestClassifier
 
 warnings.filterwarnings("ignore")    
 
 #%matplotlib qt
-
-#def analysis(code,m,chp,est):
-proceed = True
-
-code = 'BOM500399'
-m = 4
-mz = 2
-chp = 6
-est = 100
-split = 50
-
 def analysis(code,m,mz,chp,est,split):
     st = datetime.datetime.now()
     database_path=os.path.join('database','main.db')
@@ -53,16 +45,17 @@ def analysis(code,m,mz,chp,est,split):
     last_close= df['Close'][n-1]
     last_date = datetime.datetime.strptime(last_date, "%Y-%m-%d").date()    
     last_date_str = last_date.strftime("%d %b %Y")
+    
+    # improvement : improve healths.csv file to exclude dead stocks        
+    today = datetime.datetime.now().date()
+    daydifference = (today-last_date).days
+    if daydifference > 15 : # Dead Stock
+        return None            
+
+    # Most Required Data
     df = df[prices+others]
-        
-    '''
-    n = 10 -> m = 4 -> 0 1 2 3 ... 4 5 6 7 ... 8 9 <- mz = 3
-    i < n-2 end = n - mz + 1
-    n-3 , n-2 , n-1 will be targets
-    base_i = i-m
-    base_z = i+mzi (0,1,...mz-1)    
-    samples = n-m-mz+1
-    '''
+
+    # Target Variables
     y = []
     avg_closes = []
     init_opens = []
@@ -87,40 +80,9 @@ def analysis(code,m,mz,chp,est,split):
         elif eff < oprice and change < (-chp) : # Extreme Negatives
             y.append(0)
         else :
-            y.append(-1) # Mixed Data Point        
+            y.append(-1) # Mixed Data Point                        
         
-    ''' Visualization    
-    # 1, Plot Closes        
-    '''    
-    close = []
-    for i in range(m,n-mz+1):
-        cprice = df[cpriceColumnName][i]
-        close.append(cprice)        
-    
-    close = np.array(close)
-    y = np.array(y)
-    
-    close_p = np.ma.masked_where(~(y== 1) ,close)
-    close_n = np.ma.masked_where(~(y== 0) ,close)
-    close_e = np.ma.masked_where(~(y==-1) ,close)
-    
-    '''
-    fig, ax = plt.subplots()        
-    ax.plot(init_opens,'black')
-    ax.plot(avg_closes,'blue')
-    ax.plot(close,'grey')
-    ax.plot(close_e,'cyan')
-    ax.plot(close_p,'green',marker='^')
-    ax.plot(close_n,'red')
-        
-    plt.show()
-    '''
-    
-    
-        
-    # Feature Space 2
-    # Considering m = 2, talib values can be compared amongst themselves
-    x_talib_stats = []        
+    # Feature Space New Talib        
     previous_columns = df.columns.values    
     op = df['Open']
     hp = df['High']
@@ -200,33 +162,25 @@ def analysis(code,m,mz,chp,est,split):
     
     # Combining Feature Spaces
     x = []
-    for i in range(m,n-mz+1):      
+    for i in range(m,n):      
         vals = []                
         vals.extend(df.iloc[i].values)        
-        #vals.extend([x_talib_cdl_sum[i],1,1,1,1])
+        vals.extend([x_talib_cdl_sum[i]])
         x.append(vals)
     
-
-    x = np.array(x).astype(float)
-    y = np.array(y).astype(float)    
-
+    x = np.array(x).astype(float)    
+    y = np.array(y).astype(float)
     
-    # Remove Some Data (Ancestors) Which could be monotonous
-    # like SMA(30) and EMA(20) which dont have good values till index30
-    #ancestors = 30    
-    #x = x[ancestors:]
-    #y = y[ancestors:]    
-    '''
+    # improvement : stop processing if feature is zero vector
+
+    # Enigma
     lastXN = len(x)-1
     lastFeature = x[lastXN] # The Enigma Key
-    lastFeature = lastFeature.reshape(1,len(lastFeature))
-    x = x[:lastXN] # Dropping Last Feature (Key)                    
-    '''    
-    
+    lastFeature = lastFeature.reshape(1,len(lastFeature))    
+    x = x[:len(y)] # Dropping Trailing Features
 
     # Considering Only Extremes
     # we have x and y here     
-    
     extreme_x = []
     extreme_y = []
     extreme_z = []
@@ -247,107 +201,7 @@ def analysis(code,m,mz,chp,est,split):
     z = np.array(z).astype(float)
     
     
-    lenY = len(y)
-    count_y_bulls = 0
-    count_y_first = 0
-    count_y_scnds = 0
-    dbulls = {}
-    for i in range(lenY):
-        if y[i] == 1 :
-            count_y_bulls += 1
-            first_bull = z[i][1] - z[i][0]
-            second_bull = z[i][2] - z[i][0]
-            first_bull = (first_bull*100)/z[i][0]
-            second_bull = (second_bull*100)/z[i][0]
-            if first_bull > second_bull :
-                count_y_first += 1
-            else :
-                count_y_scnds += 1
-            
-            sbull = int(second_bull - first_bull)        
-                
-            if sbull in dbulls.keys() :
-                dbulls[sbull] += 1
-            else :
-                dbulls[sbull] = 1                                            
-           
-    if count_y_bulls > 0 :
-        print('First Bulls    \t',count_y_first/count_y_bulls)
-        print('Second Bulls   \t',count_y_scnds/count_y_bulls)
-        print('Complete Bulls \t',count_y_bulls)
-
-    dbulls_list_x = []
-    dbulls_list_y = []
-    dbulls_keys = list(dbulls.keys())
-    dbulls_keys.sort()    
-    
-    for i in dbulls_keys :
-        dbulls_list_x.append(i)
-        dbulls_list_y.append(dbulls[i])
-    
-    fig, ax = plt.subplots()                
-    ax.scatter(dbulls_list_x, dbulls_list_y)        
-    plt.show()
-        
-    
-    ''' Visualize Bullish Sums - Bearish Sums
-    Vs Results
-    
-    
-    xsum = np.sum(x, axis = 1)    
-    
-    xsum_p = np.ma.masked_where(~(y== 1) ,xsum)
-    xsum_n = np.ma.masked_where(~(y== 0) ,xsum)
-    xsum_e = np.ma.masked_where(~(y==-1) ,xsum)
-    
-    fig, ax = plt.subplots()            
-    ax.plot(xsum,'grey')
-    ax.plot(xsum_e,'cyan')
-    ax.plot(xsum_p,'green',marker='^')
-    ax.plot(xsum_n,'red')
-        
-    plt.show()
-    
-    '''
-    
-    #--------------------------------------------------------------    
-    from sklearn.manifold import TSNE    
-    
-    tsne = TSNE(n_components=2,
-                #perplexity=10,
-                random_state=1)
-                
-    
-    
-    x_clustered = tsne.fit_transform(x)    
-        
-    x_clustered = np.array(x_clustered).astype(int)
-    
-    mask_p = np.ma.getmask(np.ma.masked_where(~(y== 1) ,y))
-    mask_n = np.ma.getmask(np.ma.masked_where(~(y== 0) ,y))    
-    
-    mask_p2 = []
-    mask_n2 = []
-    
-    lenMP = len(mask_p)
-    for i in range(lenMP):
-        mask_p2.append([mask_p[i],mask_p[i]])
-        mask_n2.append([mask_n[i],mask_n[i]])
-            
-    x_clustered_p = np.ma.masked_where(mask_p2, x_clustered)
-    x_clustered_n = np.ma.masked_where(mask_n2, x_clustered)    
-        
-    fig, ax = plt.subplots()                    
-    ax.scatter(x_clustered_p[:,0],x_clustered_p[:,1],marker='^',c='green')
-    ax.scatter(x_clustered_n[:,0],x_clustered_n[:,1],marker='.',c='red')
-        
-    plt.show()    
-        
-    #-------------------------------------------------------------
-    
-    
-    print('Started Grids')    
-    st = datetime.datetime.now()
+    print('Started Grids')        
     len_data = len(x)
     train_percentage = 50
     split_index = (len_data * train_percentage)//100
@@ -364,110 +218,140 @@ def analysis(code,m,mz,chp,est,split):
     print("balance ytrain     \t",classbalance_ytrain)
     print("balance ytests     \t",classbalance_ytests)        
     
-    metro1 = []    
-    metro2 = []    
-    metro3 = []    
-    metro4 = []    
-    depth = 20
-    min_samp_split = 4/100#0.04
-    max_nodes = 30
-    msLP = 0.011
-    esti = 400
-    #min_samp_leaf = 5 _ Dubious
-    # OOB_SCORE doesnt matter
-    # bootstrap=True
-    # WarmStart doesnt matter
-    # min_impurity_decrease= default best
+
     fc = len(xtrain[0])    
     # %matplotlib qt    
-    # cwt = balanced and balanced_subsample are both good equally    
-    #print("Begin Features",fc)
-    fc_names = []
-    for fc_i in range(fc):
-        fc_names.append(fc_i)          
-    nfc_names = np.array(fc_names).astype(int)
     
-    pruned_features = []   
+    cur1 = 0
+    cur2 = 0
+    cur9 = 0    
+    best1 = 0    
+    best2 = 0
+    best9 = 0    
+    best_acc = 0
+    best_prec = 0    
+    best_recall = 0
+    best_f1score = 0
+    best_feature_count = 0
+    best_predictions = []
+    
+    pruned_features = []  
     prune = False
     while len(pruned_features) < fc :        
     #for ichmoku in range(1,2):
-        print( fc-len(pruned_features),'/',fc)
+        #print( fc-len(pruned_features),'/',fc)
         
-        xn = np.delete(x, pruned_features, axis=1)
-        fn = np.delete(nfc_names, pruned_features, None)
+        xn = np.delete(x, pruned_features, axis=1)        
         
         xtrain = xn[:split_index]        
-        xtests = xn[split_index:]
-        
-        st = datetime.datetime.now()                        
+        xtests = xn[split_index:]        
             
-        rfc = RandomForestClassifier(n_estimators=est,
+        clf = RandomForestClassifier(n_estimators=est,
                                      class_weight='balanced',
                                      criterion='gini',
                                      random_state=1,
                                      verbose=False,
                                      n_jobs=-1)
-            
+        clf.fit(xtrain,ytrain)
 
-      
+        y_pred=clf.predict(xtests)           
         
-        rfc.fit(xtrain,ytrain)
-
-        y_pred=rfc.predict(xtests)
-        #ytests = ytrain
-        
-        et = datetime.datetime.now()
-        tt = (et-st).seconds
-        timetaken = str(tt//60)+' Mins '+str(tt%60)+' Seconds'
-        print('\n'+timetaken)    
-        
-        f1avg = 'binary'
-        
+        f1avg = 'binary'        
+        cur9 = len(pruned_features)
+        cpfc = len(pruned_features)
+        cur1 = metrics.precision_score(ytests, y_pred)        
+        #cur2 = metrics.f1_score(ytests, y_pred, average=f1avg)        
+        cur2 = metrics.accuracy_score(ytests, y_pred)    
         cur_acc = metrics.accuracy_score(ytests, y_pred)    
         cur_prec = metrics.precision_score(ytests, y_pred)    
         cur_recall = metrics.recall_score(ytests, y_pred)    
         cur_f1score = metrics.f1_score(ytests, y_pred, average=f1avg)
-    
-    
-        print("*")
-        print("F1                  \t",cur_f1score)
-        print("Recall              \t",cur_recall)
-        print("Accuracy            \t",cur_acc)
-        print("Precision           \t",cur_prec)
-        print("With Split Percent  \t",train_percentage)
-        metro1.append(cur_f1score)
-        metro2.append(cur_recall)
-        metro3.append(cur_acc)
-        metro4.append(cur_prec)
-        
-        # Pruning feature space                
-        cpfc = len(pruned_features)
-        feature_imp = pd.Series(rfc.feature_importances_,index=fn).sort_values(ascending=False)        
-        prunespeed = 1
-        if prune :
-            if (fc-cpfc) > prunespeed :
-                fkmore = feature_imp.tail(prunespeed).index
-                for fkpi in range(prunespeed):                
-                    fk = int(fkmore[fkpi])
-                    pruned_features.append(fk)
-            else :
-                break        
-        else :
-            break
-    
-    if prune :
-        plt.figure(figsize=(20, 16))    
-        plt.plot(metro1,label='F1')    
-        plt.plot(metro2,label='Recall')
-        plt.plot(metro3,label='Accuracy')
-        plt.plot(metro4,label='Precision')
-        plt.legend()
-        plt.grid()
-        plt.show()    
+        mtn, mfp, mfn, mtp = metrics.confusion_matrix(ytests, y_pred).ravel()                                
+        prisma1 = (cur1 > best1)
+        prisma2 = (cur1==best1 and cur2 > best2)
+        prisma3 = (cur1==best1 and cur2 == best2 and cur9 > best9)
+        if  prisma1 or prisma2 or prisma3 :            
+            best1 = cur1
+            best2 = cur2
+            best9 = cur9            
+            best_clf = clf
+            best_acc = cur_acc            
+            best_prec = cur_prec            
+            best_recall = cur_recall
+            best_f1score = cur_f1score
+            best_predictions = y_pred           
+            best_feature_count = fc-cpfc                        
             
+            # Making Prediction            
+            xfinal = lastFeature                                                    
+            yfinal=clf.predict(xfinal)
+            yprobs=clf.predict_proba(xfinal)            
+            ybull= yprobs[0][1]                   
+            
+        if not prune :
+            break                
     
+    y_pred = best_predictions            
+    clf = best_clf  # Restoring Best Model                
+    print("M                \t",m)    
+    print("MZ               \t",mz)
+    print("Chp              \t",chp)    
+    print("F1Sc             \t",best_f1score)
+    print("Recall           \t",best_recall)
+    print("Accuracy         \t",best_acc)
+    print("Precision        \t",best_prec)
+    print("Estimators       \t",est)
+    print("Company Code     \t",code)        
+    print("Feature Count    \t",best_feature_count)
+    et = datetime.datetime.now()
+    tt = (et-st).seconds    
+    timetaken = str(tt//60)+' Mins '+str(tt%60)+' Seconds'
+    print('\n'+timetaken)
 
+    result = []    
+    used_params = [code,m,mz,chp,est]
+    time_metric = [timetaken,tt]
+    best_metric = [best_prec,best_acc,best_recall,best_f1score]
+    best_output = [last_close,last_date_str,ybull,yfinal[0]]    
+    result.extend(used_params)
+    result.extend(time_metric)
+    result.extend(best_metric)
+    result.extend(best_output)    
+    return result
 
+# Main of Kowaski  
+# def analysis(code,m,mz,chp,est,split):        
+m = 4
+mz = 2
+chp = 6
+est = 100 # can be moved to 1000 to check increase in accuracy
+split = 50 # can be modified to increase the train and test cases
+headers1 = ['Code','PastDays','FutureDays','ChangeInPercentage','Estimators']
+headers2 = ['Total Time Taken','Seconds']
+headers3 = ['Precision','Accuracy','Recall','F1Score']
+headers4 = ['LastClose','LastDate','BullPower','Prediction']
+headers5 = ['Name','Code']
+headers = headers1 + headers2 + headers3 + headers4 +headers5
+results = [headers]
+metadata = Helpers.MetaData()
+codes_names = metadata.healthy_codes
+for (code,name) in codes_names.items():
+    result = analysis(code,m,mz,chp,est,split)
+    if result :
+        results.append(result+[name,code])            
+
+if not os.path.exists('results'):
+    os.makedirs('results')
+
+finishdatetime = datetime.datetime.now()
+resultfilename = finishdatetime.strftime('%d_%b_%Y_%H_%M_%S_%f')+'.csv'
+resultfilepath = os.path.join('results',resultfilename)    
+with open(resultfilepath,'w+',newline='') as csv_file:
+    csvWriter = csv.writer(csv_file,delimiter=',')
+    csvWriter.writerows(results)
+    
+mailer = Mailers.MailClient()
+mailer.SendEmail(resultfilename,resultfilename)
 
 
 
