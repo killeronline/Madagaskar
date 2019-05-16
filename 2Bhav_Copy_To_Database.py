@@ -65,7 +65,7 @@ for date in dates:
     bhav_csv_file_path = os.path.join('bhav',file_name+'.csv')
     if os.path.exists(bhav_csv_file_path):
         st = datetime.datetime.now()
-        df = pd.read_csv(bhav_csv_file_path) 
+        df = pd.read_csv(bhav_csv_file_path)
         df = df[df['SC_CODE'].isin(numericcodes)]
         df = df.reset_index(drop=True) # Must for array like access
         for i in range(df.shape[0]):            

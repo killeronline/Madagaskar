@@ -17,13 +17,15 @@ warnings.filterwarnings("ignore")
 
 #def analysis(code,m,chp,est):
 proceed = True
+
 code = 'BOM500399'
 m = 4
 mz = 2
 chp = 6
 est = 100
-#def analysis(code,m,chp,est,split):
-if proceed:
+split = 50
+
+def analysis(code,m,mz,chp,est,split):
     st = datetime.datetime.now()
     database_path=os.path.join('database','main.db')
     conn=sql.connect(database_path)    
@@ -262,7 +264,8 @@ if proceed:
             else :
                 count_y_scnds += 1
             
-            sbull = int(second_bull - first_bull)
+            sbull = int(second_bull - first_bull)        
+                
             if sbull in dbulls.keys() :
                 dbulls[sbull] += 1
             else :
@@ -275,15 +278,17 @@ if proceed:
 
     dbulls_list_x = []
     dbulls_list_y = []
-    for i in dbulls.keys() :
+    dbulls_keys = list(dbulls.keys())
+    dbulls_keys.sort()    
+    
+    for i in dbulls_keys :
         dbulls_list_x.append(i)
         dbulls_list_y.append(dbulls[i])
     
     fig, ax = plt.subplots()                
     ax.scatter(dbulls_list_x, dbulls_list_y)        
     plt.show()
-    
-    print('dBulls',dbulls)    
+        
     
     ''' Visualize Bullish Sums - Bearish Sums
     Vs Results
