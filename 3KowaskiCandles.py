@@ -21,7 +21,7 @@ def analysis(code,m,mz,chp,est,split):
     st = datetime.datetime.now()
     database_path=os.path.join('database','main.db')
     conn=sql.connect(database_path)    
-    df = pd.read_sql_query('select * from '+code, conn)    
+    df = pd.read_sql_query('select * from '+code, conn)
     conn.close()
     volumeColumnName = 'No. of Shares'
     opriceColumnName = 'Open'
@@ -42,9 +42,14 @@ def analysis(code,m,mz,chp,est,split):
     df = df.reset_index(drop=True)
     n = df.shape[0]    
     last_date = df['Date'][n-1]
+    last_open = df['Open'][n-1]
     last_close= df['Close'][n-1]
     last_date = datetime.datetime.strptime(last_date, "%Y-%m-%d").date()    
     last_date_str = last_date.strftime("%d %b %Y")
+    
+    # some parameter checks 
+    if mz < 2 :
+        return None
     
     # improvement : improve healths.csv file to exclude dead stocks        
     today = datetime.datetime.now().date()
@@ -160,7 +165,7 @@ def analysis(code,m,mz,chp,est,split):
     x_talib_cdl_sum = np.sum(df, axis = 1)
         
     
-    # Combining Feature Spaces
+    # Combining Feature Spaces    
     x = []
     for i in range(m,n):      
         vals = []                
@@ -174,6 +179,8 @@ def analysis(code,m,mz,chp,est,split):
     # improvement : stop processing if feature is zero vector
 
     # Enigma
+    hbcp = cp[n-1]
+    hbop = op[n-1]
     lastXN = len(x)-1
     lastFeature = x[lastXN] # The Enigma Key
     lastFeature = lastFeature.reshape(1,len(lastFeature))    
@@ -307,16 +314,29 @@ def analysis(code,m,mz,chp,est,split):
     tt = (et-st).seconds    
     timetaken = str(tt//60)+' Mins '+str(tt%60)+' Seconds'
     print('\n'+timetaken)
+    
+    # half blood = second bull impact relative to magnitude of first bull
+    # op = i open prices
+    # cp = i close prices
+    hb = ((hbcp - hbop)*100)/hbop
+    hbchp = chp
+    if yfinal[0] == 0 :
+        hbchp = -chp
+    exp = ((mz*hbchp)-hb)/(mz-1)
+    hbp = exp-hb
+    reg = last_open+(hbp*last_open/100) # regressed close
 
     result = []    
     used_params = [code,m,mz,chp,est]
     time_metric = [timetaken,tt]
     best_metric = [best_prec,best_acc,best_recall,best_f1score]
-    best_output = [last_close,last_date_str,ybull,yfinal[0]]    
+    best_output = [last_open,last_close,last_date_str,ybull,yfinal[0]]    
+    best_halfbs = [hbp,reg]
     result.extend(used_params)
     result.extend(time_metric)
     result.extend(best_metric)
     result.extend(best_output)    
+    result.extend(best_halfbs)    
     return result
 
 # Main of Kowaski  
@@ -329,16 +349,38 @@ split = 50 # can be modified to increase the train and test cases
 headers1 = ['Code','PastDays','FutureDays','ChangeInPercentage','Estimators']
 headers2 = ['Total Time Taken','Seconds']
 headers3 = ['Precision','Accuracy','Recall','F1Score']
-headers4 = ['LastClose','LastDate','BullPower','Prediction']
-headers5 = ['Name','Code']
-headers = headers1 + headers2 + headers3 + headers4 +headers5
+headers4 = ['LastOpen','LastClose','LastDate','BullPower','Prediction']
+headers5 = ['HalfBloodPrince','RegressedClose']
+headers6 = ['Code','Name']
+headers = headers1 + headers2 + headers3 + headers4 +headers5 + headers6
 results = [headers]
 metadata = Helpers.MetaData()
 codes_names = metadata.healthy_codes
 for (code,name) in codes_names.items():
     result = analysis(code,m,mz,chp,est,split)
     if result :
-        results.append(result+[name,code])            
+        results.append(result+[code,name])   
+
+backtest_csv_file_path = os.path.join('backtest','actuals.csv')
+df = pd.read_csv(backtest_csv_file_path)
+actuals = {}
+lenDF = len(df)
+for i in range(lenDF):
+    key = str(df['SC_CODE'][i])
+    val = df['CLOSE'][i]
+    actuals[key] = val
+
+lenResults = len(results)
+for ri in range(lenResults):
+    if ri == 0 :
+        results[ri].extend(['ActualClose'])
+    else :
+        key = results[ri][0][3:]
+        if key in actuals.keys():
+            results[ri].extend([actuals[key]])
+        else :
+            results[ri].extend([0])
+
 
 if not os.path.exists('results'):
     os.makedirs('results')
@@ -352,6 +394,8 @@ with open(resultfilepath,'w+',newline='') as csv_file:
     
 mailer = Mailers.MailClient()
 mailer.SendEmail(resultfilename,resultfilename)
+
+
 
 
 
