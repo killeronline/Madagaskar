@@ -7,7 +7,7 @@ fixPct = 6
 thresPct = 5
 threshold = 7
 samples = 1000
-volumethres = 50000 
+volumethres = 20000 
 filename = os.path.join('meta','healthConsolidated.csv')
 df = pd.read_csv(filename,header=None)
 lenDF = len(df)

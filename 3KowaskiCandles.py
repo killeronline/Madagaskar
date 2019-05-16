@@ -366,7 +366,10 @@ def analysis(code,m,mz,chp,est,split,bt):
     result.extend(best_output)
     result.extend(best_bcktst)
     #result.extend(best_halfbs)    
-    return result
+    y_signal = yfinal[0]
+    y_bull_rounded = int(ybull*100)/100
+    best_acc_rounded = int(best_acc*100)/100    
+    return [last_date_str,last_close,best_acc_rounded,y_bull_rounded,y_signal]
 
 # Main of Kowaski  
 # def analysis(code,m,mz,chp,est,split):        
@@ -383,7 +386,9 @@ headers4 = ['LastOpen','LastClose','LastDate','BullPower','Prediction']
 headers5 = ['ActualChange','Success']
 headers6 = ['Code','Name']
 #headers' = ['HalfBloodPrince','RegressedClose']
-headers = headers1 + headers2 + headers3 + headers4 + headers5 + headers6
+#headers = headers1 + headers2 + headers3 + headers4 + headers5 + headers6
+headers = ['Last Traded Date','Last Close','Accuracy']
+headers += ['Whiskey Bulls','Buy/Short','BSE Code','Stock Name']
 results = [headers]
 metadata = Helpers.MetaData()
 codes_names = metadata.healthy_codes
@@ -391,10 +396,16 @@ processed_code_count = 0
 for (code,name) in codes_names.items():
     processed_code_count += 1
     result = analysis(code,m,mz,chp,est,split,bt)
-    if result :
+    # Accuracy > 60% and Bulls are Top 40% and Bears are Bottom 40%
+    if result and result[2] > 0.6 and (result[3] < 0.4 or result[3] > 0.6 ):
         results.append(result+[code,name])   
+        #results.append(result+[code,name])   
         #results.append(result)       
         print('Processed Code',code,'index',processed_code_count)
+
+
+
+
 
 if not os.path.exists('results'):
     os.makedirs('results')

@@ -25,13 +25,14 @@ class MailClient():
             for i in range(2,lenData):
                 distributionList.append(data[i])
             strDL = ', '.join(distributionList)
-            
-            body = text
+
+            #message = 'Subject: {}\n\n{}'.format(SUBJECT, TEXT)            
             subject = 'Kowaski'    
+            body = text
             message = MIMEMultipart()
-            message["From"] = froms
-            message["To"] = strDL
-            message["Subject"] = subject            
+            message['Subject'] = subject            
+            message['From'] = froms
+            message['To'] = strDL            
             message.preamble = subject
             message.attach(MIMEText(body,'plain'))
             filename = os.path.join('results',resultfilename)                
