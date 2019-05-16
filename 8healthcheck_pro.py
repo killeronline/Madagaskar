@@ -1,10 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Thu May  9 02:32:24 2019
-
-@author: VAIO
-"""
-
 # Load libraries
 import os
 import sys
@@ -12,7 +5,7 @@ import Helpers
 import datetime
 import pandas as pd
 
-def get_health(filename,percent):    
+def get_health(i,code,name,filename,percent):    
     try :
         df = pd.read_csv(filename)
         volumeColumnName = 'No. of Shares'
@@ -31,7 +24,7 @@ def get_health(filename,percent):
         last_date = datetime.datetime.strptime(last_date, "%Y-%m-%d").date()
         today = datetime.datetime.now().date()
         daydifference = (today-last_date).days
-        if daydifference > 30 : # Dowload date max cap of dataset files.
+        if daydifference > 30 : # Download date max cap of dataset files.
             return None
         
         df = df[prices+others]    
@@ -46,23 +39,38 @@ def get_health(filename,percent):
         avg = sum(df[cpriceColumnName])/lenDF
         if avg < 5 :
             return None
+
+        line = str(i)+','+code+','+name+','                     
+        for pct in range(1,percent):
+            p = 0
+            n = 0 
+            c = 0
+            v = 0
+            for i in range(1,df.shape[0]):                        
+                cprice = df[cpriceColumnName][i]
+                oprice = df[opriceColumnName][i]            
+                volume = df[volumeColumnName][i]
+                eff = cprice
+                diff =  eff - oprice
+                change = (diff*100)/oprice
+                if eff > oprice and change > pct :
+                    p += 1
+                    c += 1
+                    v += volume
+                elif eff < oprice and change < -pct :
+                    n += 1
+                    c += 1
+                    v += volume
+                    
+            if c > 0 :
+                p = p/c
+                n = n/c
+                v = v//c                
+                line += str(p)+','+str(n)+','+str(c)+','+str(v)+','
+            else :
+                line += str(p)+','+str(n)+','+str(c)+','+str(v)+','
                 
-        p = 0
-        n = 0
-        c = 0        
-        for i in range(1,df.shape[0]):                        
-            cprice = df[cpriceColumnName][i]
-            oprice = df[opriceColumnName][i]            
-            eff = cprice
-            diff =  eff - oprice
-            change = (diff*100)/oprice
-            if eff > oprice and change > percent :
-                p += 1
-                c += 1
-            elif eff < oprice and change < -percent :
-                n += 1
-                c += 1
-        return [p,n,c]    
+        return line + '\n'
     except :
         return None
         
@@ -80,33 +88,10 @@ for (code,name) in codes.items() :
     if i%9 == proc :
         filename = os.path.join('datasets',code+'.csv')    
         print('Analysing i',i,'code',code)
-        if os.path.exists(filename):    
-            pi = []
-            ni = []
-            ci = []
-            abort = False
-            for percentage in range(1,11):
-                health = get_health(filename,percentage)
-                if not health :
-                    abort = True
-                    break
-                p,n,c = health
-                if c > 0 :
-                    pt = p/c
-                    nt = n/c
-                else :
-                    pt = 0
-                    nt = 0
-                pi.append(pt)
-                ni.append(nt)
-                ci.append(c)
-                
-            if not abort : # Aborts include dead stocks and 5 Rs Stocks
-                line = str(i)+','+code+','+name+','
-                lenPI = len(pi)
-                for j in range(lenPI):
-                    line += str(pi[j])+','+str(ni[j])+','+str(ci[j])+','            
-                chn.append(line+'\n')            
+        if os.path.exists(filename):                            
+            health = get_health(i,code,name,filename,11)
+            if health :                    
+                chn.append(health)
         
 et = datetime.datetime.now()        
 tt = (et-st).seconds
@@ -121,15 +106,3 @@ ft = datetime.datetime.now()
 tt = (ft-et).seconds
 print("File Written",tt)  
 
-
-# Extending Merge Functionality
-dt = []
-for i in range(9):
-    f = open('meta\health'+str(i)+'.csv','r')        
-    dt.append(f.read())
-    f.close()
-
-contents = ''.join(dt)
-f = open('meta\healthConsolidated.csv','w')
-f.write(contents)
-f.close()

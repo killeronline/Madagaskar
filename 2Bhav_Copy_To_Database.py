@@ -41,8 +41,8 @@ for date in dates:
         try:
             url = baseurl+file_name+'.zip'
             #print(url)
-            wget.download(url,bhav_zip_file_path)            
-            print('Processing bhav copy for',date)
+            print('Fetching bhav copy for',date)
+            wget.download(url,bhav_zip_file_path)                        
             with ZipFile(bhav_zip_file_path, 'r') as zip:
                 zip.extractall('bhav')
         except:

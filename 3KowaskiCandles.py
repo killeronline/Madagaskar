@@ -61,12 +61,14 @@ def analysis(code,m,mz,chp,est,split,bt):
     
     # 5 Rs Stocks
     if last_close < 5 :
+        print('Low Cap Stock')
         return None
     
     # improvement : improve healths.csv file to exclude dead stocks        
     today = datetime.datetime.now().date()
     daydifference = (today-last_date).days
     if daydifference > 5 : # Dead Stock
+        print('Old Dead Stock')
         return None            
 
     # Most Required Data
@@ -387,11 +389,11 @@ metadata = Helpers.MetaData()
 codes_names = metadata.healthy_codes
 processed_code_count = 0
 for (code,name) in codes_names.items():
+    processed_code_count += 1
     result = analysis(code,m,mz,chp,est,split,bt)
     if result :
         results.append(result+[code,name])   
-        #results.append(result)   
-        processed_code_count += 1
+        #results.append(result)       
         print('Processed Code',code,'index',processed_code_count)
 
 if not os.path.exists('results'):
