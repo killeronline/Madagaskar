@@ -26,6 +26,14 @@ def get_health(filename,percent):
                   cpriceColumnName]
         others = [volumeColumnName]
         
+        # Check Last Traded Date
+        last_date = df['Date'][0]
+        last_date = datetime.datetime.strptime(last_date, "%Y-%m-%d").date()
+        today = datetime.datetime.now().date()
+        daydifference = (today-last_date).days
+        if daydifference > 30 : # Dowload date max cap of dataset files.
+            return None
+        
         df = df[prices+others]    
         df = df.iloc[::-1]
         df = df.reset_index(drop=True) # Csv Files
@@ -33,10 +41,15 @@ def get_health(filename,percent):
         df = df[df[volumeColumnName]>0]
         df = df.reset_index(drop=True) # Re-Index
         
+        # Dropping the 5 Rs Stocks        
+        lenDF = len(df)
+        avg = sum(df[cpriceColumnName])/lenDF
+        if avg < 5 :
+            return None
+                
         p = 0
         n = 0
-        c = 0
-        
+        c = 0        
         for i in range(1,df.shape[0]):                        
             cprice = df[cpriceColumnName][i]
             oprice = df[opriceColumnName][i]            
@@ -51,7 +64,7 @@ def get_health(filename,percent):
                 c += 1
         return [p,n,c]    
     except :
-        return [0,0,1]
+        return None
         
 metadata = Helpers.MetaData()
 codes = metadata.codes
@@ -71,8 +84,13 @@ for (code,name) in codes.items() :
             pi = []
             ni = []
             ci = []
+            abort = False
             for percentage in range(1,11):
-                p,n,c = get_health(filename,percentage)
+                health = get_health(filename,percentage)
+                if not health :
+                    abort = True
+                    break
+                p,n,c = health
                 if c > 0 :
                     pt = p/c
                     nt = n/c
@@ -82,11 +100,13 @@ for (code,name) in codes.items() :
                 pi.append(pt)
                 ni.append(nt)
                 ci.append(c)
-            line = str(i)+','+code+','+name+','
-            lenPI = len(pi)
-            for j in range(lenPI):
-                line += str(pi[j])+','+str(ni[j])+','+str(ci[j])+','            
-            chn.append(line+'\n')
+                
+            if not abort : # Aborts include dead stocks and 5 Rs Stocks
+                line = str(i)+','+code+','+name+','
+                lenPI = len(pi)
+                for j in range(lenPI):
+                    line += str(pi[j])+','+str(ni[j])+','+str(ci[j])+','            
+                chn.append(line+'\n')            
         
 et = datetime.datetime.now()        
 tt = (et-st).seconds

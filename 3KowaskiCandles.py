@@ -51,10 +51,14 @@ def analysis(code,m,mz,chp,est,split):
     if mz < 2 :
         return None
     
+    # 5 Rs Stocks
+    if last_close < 5 :
+        return None
+    
     # improvement : improve healths.csv file to exclude dead stocks        
     today = datetime.datetime.now().date()
     daydifference = (today-last_date).days
-    if daydifference > 15 : # Dead Stock
+    if daydifference > 5 : # Dead Stock
         return None            
 
     # Most Required Data
@@ -62,27 +66,26 @@ def analysis(code,m,mz,chp,est,split):
 
     # Target Variables
     y = []
-    avg_closes = []
+    avg_diffs = []
     init_opens = []
-    conc_open_closes = []    
+    conc_diff = []    
     for i in range(m,n-mz+1):
-        oprice = df[opriceColumnName][i]
-        mz_closes = []        
-        for mzi in range(mz):            
+        
+        mz_diff = []        
+        for mzi in range(1,mz):            
             base_z = i + mzi
+            oprice = df[opriceColumnName][base_z]
             cprice = df[cpriceColumnName][base_z]
-            mz_closes.append(cprice)
+            mz_diff.append(((cprice-oprice)*100)/oprice)
                         
-        conc_open_closes.append([oprice]+mz_closes)                
-        avg_cprice = sum(mz_closes)/mz            
-        avg_closes.append(avg_cprice)
+        conc_diff.append(mz_diff)                
+        avg_diff = sum(mz_diff)/mz            
+        avg_diffs.append(avg_diff)
         init_opens.append(oprice)
-        eff = avg_cprice
-        diff =  eff - oprice
-        change = (diff*100)/oprice
-        if eff > oprice and change > chp : # Extreme Positives
+        change = avg_diff                
+        if change > chp : # Extreme Positives
             y.append(1)
-        elif eff < oprice and change < (-chp) : # Extreme Negatives
+        elif change < (-chp) : # Extreme Negatives
             y.append(0)
         else :
             y.append(-1) # Mixed Data Point                        
@@ -179,8 +182,8 @@ def analysis(code,m,mz,chp,est,split):
     # improvement : stop processing if feature is zero vector
 
     # Enigma
-    hbcp = cp[n-1]
-    hbop = op[n-1]
+    #hbcp = cp[n-1]
+    #hbop = op[n-1]
     lastXN = len(x)-1
     lastFeature = x[lastXN] # The Enigma Key
     lastFeature = lastFeature.reshape(1,len(lastFeature))    
@@ -189,28 +192,24 @@ def analysis(code,m,mz,chp,est,split):
     # Considering Only Extremes
     # we have x and y here     
     extreme_x = []
-    extreme_y = []
-    extreme_z = []
+    extreme_y = []    
     lenNY = len(y)
     for i in range(lenNY):
         if y[i] >= 0 :
             extreme_x.append(x[i])
-            extreme_y.append(y[i])
-            extreme_z.append(conc_open_closes[i])
+            extreme_y.append(y[i])            
             
     x = extreme_x
-    y = extreme_y
-    z = extreme_z
+    y = extreme_y    
     
     
     x = np.array(x).astype(float)
-    y = np.array(y).astype(float)
-    z = np.array(z).astype(float)
+    y = np.array(y).astype(float)    
     
     
     print('Started Grids')        
     len_data = len(x)
-    train_percentage = 50
+    train_percentage = split
     split_index = (len_data * train_percentage)//100
     xtrain = x[:split_index]
     ytrain = y[:split_index]
@@ -300,6 +299,7 @@ def analysis(code,m,mz,chp,est,split):
     
     y_pred = best_predictions            
     clf = best_clf  # Restoring Best Model                
+    '''
     print("M                \t",m)    
     print("MZ               \t",mz)
     print("Chp              \t",chp)    
@@ -310,6 +310,13 @@ def analysis(code,m,mz,chp,est,split):
     print("Estimators       \t",est)
     print("Company Code     \t",code)        
     print("Feature Count    \t",best_feature_count)
+    '''
+    print("F1Sc             \t",best_f1score)
+    print("Recall           \t",best_recall)
+    print("Accuracy         \t",best_acc)
+    print("Precision        \t",best_prec)
+    print("Feature Count    \t",best_feature_count)
+    
     et = datetime.datetime.now()
     tt = (et-st).seconds    
     timetaken = str(tt//60)+' Mins '+str(tt%60)+' Seconds'
@@ -318,25 +325,27 @@ def analysis(code,m,mz,chp,est,split):
     # half blood = second bull impact relative to magnitude of first bull
     # op = i open prices
     # cp = i close prices
+    '''
     hb = ((hbcp - hbop)*100)/hbop
     hbchp = chp
     if yfinal[0] == 0 :
         hbchp = -chp
-    exp = ((mz*hbchp)-hb)/(mz-1)
-    hbp = exp-hb
-    reg = last_open+(hbp*last_open/100) # regressed close
+    exp = ((mz*hbchp)-hb)/(mz-1)    
+    hbp = exp
+    reg = last_close+(hbp*last_close/100) # regressed close
+    '''
 
     result = []    
     used_params = [code,m,mz,chp,est]
     time_metric = [timetaken,tt]
     best_metric = [best_prec,best_acc,best_recall,best_f1score]
     best_output = [last_open,last_close,last_date_str,ybull,yfinal[0]]    
-    best_halfbs = [hbp,reg]
+    #best_halfbs = [hbp,reg]
     result.extend(used_params)
     result.extend(time_metric)
     result.extend(best_metric)
     result.extend(best_output)    
-    result.extend(best_halfbs)    
+    #result.extend(best_halfbs)    
     return result
 
 # Main of Kowaski  
@@ -344,44 +353,54 @@ def analysis(code,m,mz,chp,est,split):
 m = 4
 mz = 2
 chp = 6
-est = 100 # can be moved to 1000 to check increase in accuracy
-split = 50 # can be modified to increase the train and test cases
+est = 1000 # can be moved to 1000 to check increase in accuracy
+split = 80 # can be modified to increase the train and test cases
 headers1 = ['Code','PastDays','FutureDays','ChangeInPercentage','Estimators']
 headers2 = ['Total Time Taken','Seconds']
 headers3 = ['Precision','Accuracy','Recall','F1Score']
 headers4 = ['LastOpen','LastClose','LastDate','BullPower','Prediction']
-headers5 = ['HalfBloodPrince','RegressedClose']
-headers6 = ['Code','Name']
-headers = headers1 + headers2 + headers3 + headers4 +headers5 + headers6
+headers5 = ['Code','Name']
+#headers' = ['HalfBloodPrince','RegressedClose']
+headers = headers1 + headers2 + headers3 + headers4 + headers5
 results = [headers]
 metadata = Helpers.MetaData()
 codes_names = metadata.healthy_codes
+processed_code_count = 0
 for (code,name) in codes_names.items():
     result = analysis(code,m,mz,chp,est,split)
     if result :
         results.append(result+[code,name])   
+        #results.append(result)   
+        processed_code_count += 1
+        print('Processed Code',code,'index',processed_code_count)
 
-backtest_csv_file_path = os.path.join('backtest','actuals.csv')
-df = pd.read_csv(backtest_csv_file_path)
-actuals = {}
-lenDF = len(df)
-for i in range(lenDF):
-    key = str(df['SC_CODE'][i])
-    val = df['CLOSE'][i]
-    actuals[key] = val
-
-lenResults = len(results)
-for ri in range(lenResults):
-    if ri == 0 :
-        results[ri].extend(['ActualClose'])
-    else :
-        key = results[ri][0][3:]
-        if key in actuals.keys():
-            results[ri].extend([actuals[key]])
+backtest = False
+if backtest :
+    btdate = 14
+    bt_csv_file_path = os.path.join('backtest','actuals'+str(btdate)+'.csv')
+    df = pd.read_csv(bt_csv_file_path)
+    actuals = {}
+    lenDF = len(df)
+    for i in range(lenDF):
+        key = str(df['SC_CODE'][i])
+        cpv = df['CLOSE'][i]
+        opv = df['OPEN'][i]
+        val = ((cpv-opv)*100)/opv
+        actuals[key] = val
+    
+    lenResults = len(results)
+    for ri in range(lenResults):
+        if ri == 0 :
+            results[ri].extend(['ActualChp'])
         else :
-            results[ri].extend([0])
+            key = results[ri][0][3:]
+            if key in actuals.keys():
+                results[ri].extend([actuals[key]])
+            else :
+                results[ri].extend([0])
 
-
+#Excel Filter
+#=OR(AND(P2=1,Q2>0),AND(P2=0,Q2<0))
 if not os.path.exists('results'):
     os.makedirs('results')
 
