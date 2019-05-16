@@ -31,6 +31,7 @@ codes = metadata.healthy_codes.keys()
 i = 0
 for code in codes:
     i += 1
+    print('Reading',code)
     csv_file_path = os.path.join('datasets',code+'.csv')
     if os.path.exists(csv_file_path):
         df = pd.read_csv(csv_file_path)       

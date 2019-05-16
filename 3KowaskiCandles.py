@@ -406,8 +406,8 @@ with open(resultfilepath,'w+',newline='') as csv_file:
     csvWriter = csv.writer(csv_file,delimiter=',')
     csvWriter.writerows(results)
     
-#mailer = Mailers.MailClient()
-#mailer.SendEmail(resultfilename,resultfilename)
+mailer = Mailers.MailClient()
+mailer.SendEmail(resultfilename,resultfilename)
 
 
 
