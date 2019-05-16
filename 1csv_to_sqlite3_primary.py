@@ -32,15 +32,19 @@ i = 0
 for code in codes:
     i += 1
     print('Reading',code)
-    csv_file_path = os.path.join('datasets',code+'.csv')
-    if os.path.exists(csv_file_path):
-        df = pd.read_csv(csv_file_path)       
-        df = df[select]
-        df = df.iloc[::-1] # Reverse
-        df = df.reset_index(drop=True) #Re-Index
-        df.to_sql(name=code,
-                  con=conn,
-                  if_exists='replace',
-                  index=True,
-                  index_label='id')    
+    try :
+        csv_file_path = os.path.join('datasets',code+'.csv')
+        if os.path.exists(csv_file_path):
+            df = pd.read_csv(csv_file_path)       
+            df = df[select]
+            df = df.iloc[::-1] # Reverse
+            df = df.reset_index(drop=True) #Re-Index
+            df.to_sql(name=code,
+                      con=conn,
+                      if_exists='replace',
+                      index=True,
+                      index_label='id')    
+    except :
+        print('Failed',code)
+        
 conn.close()
