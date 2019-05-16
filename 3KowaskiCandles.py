@@ -17,11 +17,11 @@ from sklearn.ensemble import RandomForestClassifier
 warnings.filterwarnings("ignore")    
 
 #%matplotlib qt
-def analysis(code,m,mz,chp,est,split):
+def analysis(code,m,mz,chp,est,split,bt):
     st = datetime.datetime.now()
     database_path=os.path.join('database','main.db')
     conn=sql.connect(database_path)    
-    df = pd.read_sql_query('select * from '+code, conn)
+    df = pd.read_sql_query('select * from '+code, conn)            
     conn.close()
     volumeColumnName = 'No. of Shares'
     opriceColumnName = 'Open'
@@ -34,7 +34,15 @@ def analysis(code,m,mz,chp,est,split):
               lpriceColumnName,
               cpriceColumnName]
     others = [volumeColumnName]    
-    df = df[ddates+prices+others]        
+    df = df[ddates+prices+others]
+    btp = 0
+    if bt > 0 :
+        bti = len(df)-bt
+        bto = df['Open'][bti]
+        btc = df['Close'][bti]
+        btp = ((btc-bto)*100)/bto        
+        df = df[:bti]
+        
     print("==================================================================")            
     # Cleaning Data
     # Remove All Non Traded Days ( Volume = 0 )
@@ -334,17 +342,27 @@ def analysis(code,m,mz,chp,est,split):
     hbp = exp
     reg = last_close+(hbp*last_close/100) # regressed close
     '''
+    success = '?'
+    if bt > 0 :
+        if yfinal[0] == 1 and btp > 0 :
+            success = 'Yes' # Buying
+        elif yfinal[0] == 0 and btp < 0 :
+            success = 'Yes' # Shorting
+        else :
+            success = 'No'
 
     result = []    
     used_params = [code,m,mz,chp,est]
     time_metric = [timetaken,tt]
     best_metric = [best_prec,best_acc,best_recall,best_f1score]
     best_output = [last_open,last_close,last_date_str,ybull,yfinal[0]]    
+    best_bcktst = [btp,success]
     #best_halfbs = [hbp,reg]
     result.extend(used_params)
     result.extend(time_metric)
     result.extend(best_metric)
-    result.extend(best_output)    
+    result.extend(best_output)
+    result.extend(best_bcktst)
     #result.extend(best_halfbs)    
     return result
 
@@ -352,6 +370,7 @@ def analysis(code,m,mz,chp,est,split):
 # def analysis(code,m,mz,chp,est,split):        
 m = 4
 mz = 2
+bt = 1
 chp = 6
 est = 1000 # can be moved to 1000 to check increase in accuracy
 split = 80 # can be modified to increase the train and test cases
@@ -359,48 +378,22 @@ headers1 = ['Code','PastDays','FutureDays','ChangeInPercentage','Estimators']
 headers2 = ['Total Time Taken','Seconds']
 headers3 = ['Precision','Accuracy','Recall','F1Score']
 headers4 = ['LastOpen','LastClose','LastDate','BullPower','Prediction']
-headers5 = ['Code','Name']
+headers5 = ['ActualChange','Success']
+headers6 = ['Code','Name']
 #headers' = ['HalfBloodPrince','RegressedClose']
-headers = headers1 + headers2 + headers3 + headers4 + headers5
+headers = headers1 + headers2 + headers3 + headers4 + headers5 + headers6
 results = [headers]
 metadata = Helpers.MetaData()
 codes_names = metadata.healthy_codes
 processed_code_count = 0
 for (code,name) in codes_names.items():
-    result = analysis(code,m,mz,chp,est,split)
+    result = analysis(code,m,mz,chp,est,split,bt)
     if result :
         results.append(result+[code,name])   
         #results.append(result)   
         processed_code_count += 1
         print('Processed Code',code,'index',processed_code_count)
 
-backtest = False
-if backtest :
-    btdate = 14
-    bt_csv_file_path = os.path.join('backtest','actuals'+str(btdate)+'.csv')
-    df = pd.read_csv(bt_csv_file_path)
-    actuals = {}
-    lenDF = len(df)
-    for i in range(lenDF):
-        key = str(df['SC_CODE'][i])
-        cpv = df['CLOSE'][i]
-        opv = df['OPEN'][i]
-        val = ((cpv-opv)*100)/opv
-        actuals[key] = val
-    
-    lenResults = len(results)
-    for ri in range(lenResults):
-        if ri == 0 :
-            results[ri].extend(['ActualChp'])
-        else :
-            key = results[ri][0][3:]
-            if key in actuals.keys():
-                results[ri].extend([actuals[key]])
-            else :
-                results[ri].extend([0])
-
-#Excel Filter
-#=OR(AND(P2=1,Q2>0),AND(P2=0,Q2<0))
 if not os.path.exists('results'):
     os.makedirs('results')
 
@@ -411,8 +404,8 @@ with open(resultfilepath,'w+',newline='') as csv_file:
     csvWriter = csv.writer(csv_file,delimiter=',')
     csvWriter.writerows(results)
     
-mailer = Mailers.MailClient()
-mailer.SendEmail(resultfilename,resultfilename)
+#mailer = Mailers.MailClient()
+#mailer.SendEmail(resultfilename,resultfilename)
 
 
 
