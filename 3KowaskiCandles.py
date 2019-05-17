@@ -369,14 +369,20 @@ def analysis(code,m,mz,chp,est,split,bt):
     y_signal = yfinal[0]
     y_bull_rounded = int(ybull*100)/100
     best_acc_rounded = int(best_acc*100)/100    
-    return [last_date_str,last_close,best_acc_rounded,y_bull_rounded,y_signal]
+    
+    clean = [last_date_str,last_close,best_acc_rounded,y_bull_rounded,y_signal]
+    if bt > 0 :
+        return clean + best_bcktst
+    else :
+        return clean
 
 # Main of Kowaski  
 # def analysis(code,m,mz,chp,est,split):        
 m = 4
 mz = 2
 bt = 1
-chp = 6
+metadata = Helpers.MetaData()
+chp = metadata.chp
 est = 1000 # can be moved to 1000 to check increase in accuracy
 split = 80 # can be modified to increase the train and test cases
 headers1 = ['Code','PastDays','FutureDays','ChangeInPercentage','Estimators']
@@ -388,10 +394,14 @@ headers6 = ['Code','Name']
 #headers' = ['HalfBloodPrince','RegressedClose']
 #headers = headers1 + headers2 + headers3 + headers4 + headers5 + headers6
 headers = ['Last Traded Date','Last Close','Accuracy']
-headers += ['Whiskey Bulls','Buy/Short','BSE Code','Stock Name']
+headers += ['Whiskey Bulls','Buy/Short']
+if bt > 0 :
+    headers += ['Actual Change','Success']
+    
+headers += ['BSE Code','Stock Name']
 results = [headers]
-metadata = Helpers.MetaData()
 codes_names = metadata.healthy_codes
+skipped_code_count = 0
 processed_code_count = 0
 for (code,name) in codes_names.items():
     processed_code_count += 1
@@ -402,6 +412,13 @@ for (code,name) in codes_names.items():
         #results.append(result+[code,name])   
         #results.append(result)       
         print('Processed Code',code,'index',processed_code_count)
+    else :
+        skipped_code_count += 1
+        
+if processed_code_count == 0 :
+    processed_code_count += 1
+    
+print('Skipped %',skipped_code_count/processed_code_count)
 
 
 
@@ -417,8 +434,8 @@ with open(resultfilepath,'w+',newline='') as csv_file:
     csvWriter = csv.writer(csv_file,delimiter=',')
     csvWriter.writerows(results)
     
-mailer = Mailers.MailClient()
-mailer.SendEmail(resultfilename,resultfilename)
+#mailer = Mailers.MailClient()
+#mailer.SendEmail(resultfilename,resultfilename)
 
 
 

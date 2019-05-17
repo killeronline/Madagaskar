@@ -16,38 +16,44 @@ for i in range(past+1):# including today and early morning bhavcopy (fail safe)
     y = i_date.year
     m = i_date.month
     d = i_date.day
-    datestr = [] # DD MM YYYY
-    if d < 10 :
-        datestr.append('0'+str(d))
-    else :
-        datestr.append(str(d))
-    if m < 10 :
-        datestr.append('0'+str(m))
-    else :
-        datestr.append(str(m))
-    datestr.append(str(y-2000))    
-    datevalue = ''.join(datestr)            
-    dates.append(datevalue)
-    
-#https://www.bseindia.com/download/BhavCopy/Equity/EQ_ISINCODE_260419.zip    
-if not os.path.exists('bhav'):
-    os.makedirs('bhav')
-baseurl = 'https://www.bseindia.com/download/BhavCopy/Equity/'
-for date in dates:
-    file_name = 'EQ_ISINCODE_'+date
-    bhav_csv_file_path = os.path.join('bhav',file_name+'.csv')
-    bhav_zip_file_path = os.path.join('bhav',file_name+'.zip')
-    if not os.path.exists(bhav_csv_file_path):
-        try:
-            url = baseurl+file_name+'.zip'
-            #print(url)
-            print('Fetching bhav copy for',date)
-            wget.download(url,bhav_zip_file_path)                        
-            with ZipFile(bhav_zip_file_path, 'r') as zip:
-                zip.extractall('bhav')
-        except:
-            pass
-            #print('No Bhav Copy for',date)
+    w = i_date.weekday()    
+    if w < 5 : # 5 is saturday and 6 is sunday        
+        datestr = [] # DD MM YYYY
+        if d < 10 :
+            datestr.append('0'+str(d))
+        else :
+            datestr.append(str(d))
+        if m < 10 :
+            datestr.append('0'+str(m))
+        else :
+            datestr.append(str(m))
+        datestr.append(str(y-2000))    
+        datevalue = ''.join(datestr)            
+        dates.append(datevalue)
+
+Skip = True
+if Skip :
+    print('Note : Skip is set to True, Downloads are disabled.')
+else :    
+    #https://www.bseindia.com/download/BhavCopy/Equity/EQ_ISINCODE_260419.zip    
+    if not os.path.exists('bhav'):
+        os.makedirs('bhav')
+    baseurl = 'https://www.bseindia.com/download/BhavCopy/Equity/'
+    for date in dates:
+        file_name = 'EQ_ISINCODE_'+date
+        bhav_csv_file_path = os.path.join('bhav',file_name+'.csv')
+        bhav_zip_file_path = os.path.join('bhav',file_name+'.zip')
+        if not os.path.exists(bhav_csv_file_path):
+            try:
+                url = baseurl+file_name+'.zip'
+                #print(url)
+                print('Fetching bhav copy for',date)
+                wget.download(url,bhav_zip_file_path)                        
+                with ZipFile(bhav_zip_file_path, 'r') as zip:
+                    zip.extractall('bhav')
+            except:
+                pass
+                #print('No Bhav Copy for',date)
                     
             
 metadata = Helpers.MetaData()
@@ -80,7 +86,7 @@ for date in dates:
             ncode_data[scode].append(ncode_bhav_arr)            
         et = datetime.datetime.now()
         tt = (et-st).seconds
-        print('Processed csv file with code',date,'in',tt,'seconds')        
+        #print('Processed csv file with code',date,'in',tt,'seconds')        
 
 
 # Judgement Day

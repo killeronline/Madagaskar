@@ -22,6 +22,10 @@ others = [volumeColumnName]
 select = ddates + prices + others
 
 database_path=os.path.join('database','main.db')
+if os.path.exists(database_path):
+    os.remove(database_path)
+    
+# Create Database    
 conn=sql.connect(database_path)
 
 

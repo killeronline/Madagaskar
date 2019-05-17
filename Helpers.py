@@ -31,5 +31,6 @@ class MetaData():
     def __init__(self):
         self.codes = self.get_codes_dict()
         self.healthy_codes = self.get_healthy_dict()
+        self.chp = 5
         
     
