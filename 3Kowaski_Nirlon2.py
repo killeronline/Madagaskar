@@ -374,14 +374,16 @@ for code in healthy_codes_names.keys() :
             analytics.append(dt1+dt2)
             break                
         
-    if pcc%10 == 0 :
+    if pcc%50 == 0 :
         mtT = 'PctsW St {} {}_{} ( {}_% )'
         iTime = initTime.strftime('%H_%M')
         pgText = mtT.format(iTime,pcc,lenCodes,int(pcc*100/lenCodes))
         mailer.SendEmail(pgText,None)
         
-    if pcc > 20 :
+    '''
+    if pcc > 400 :
         break
+    '''
     
 if not os.path.exists('results'):
     os.makedirs('results')
