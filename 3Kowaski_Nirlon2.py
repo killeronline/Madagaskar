@@ -22,6 +22,7 @@ warnings.filterwarnings("ignore")
 m = 4
 mz = 2
 bt = 1
+#bt = int(input('Enter Bt Value:'))
 est = 1000 # can be moved to 1000 to check increase in accuracy
 split = 50 # can be modified to increase the train and test cases
 
@@ -37,7 +38,7 @@ code_disasters = ['BOM509020']
 pcc = 0
 lenCodes = len(codes_names.keys())
 initTime = datetime.datetime.now()
-header1 = ['Code','Samples','lenXN','Volume','Threshold']
+header1 = ['Code','Bt','Samples','lenXN','Volume','Threshold']
 header2 = ['Success','Strength','Prediction','Change','Chp','xEf','Rbf']
 analytics = [header1 + header2]
 for code in codes_names.keys() :
@@ -104,7 +105,7 @@ for code in codes_names.keys() :
     # improvement : removing dead stocks
     today = datetime.datetime.now().date()
     daydifference = (today-last_date).days
-    if daydifference > 5 : # Dead Stock
+    if daydifference > 10 : # Dead Stock
         print('Old Dead Stock,Code:',code)
         continue            
     
@@ -297,16 +298,20 @@ for code in codes_names.keys() :
         ft_pass = 111        
         while ft_pass >= 70 :            
             ft_pass -= 1
-            robust_features = []                        
+            quality_features = []
             for j in range(fc):
-                if pctsW2[j] >= ft_pass :
-                    robust_features.append(j)
+                if pcts[j] >= ft_pass :
+                    quality_features.append(j)
+                        
             xE_Rbf = ''
             x_pass_sum = 0
-            for j in robust_features :
+            robust_features = []
+            for j in quality_features :
                 x_pass_sum += lastFeature[0][j]
                 if lastFeature[0][j] != 0 :
+                    robust_features.append(j)                    
                     xE_Rbf += str(j)+'_'
+                    
             if x_pass_sum > 0 :
                 xh = []
                 yh = []                
@@ -329,6 +334,8 @@ for code in codes_names.keys() :
                 ytests = yn[split_index:]                   
                 xtrain = xn[:split_index]
                 xtests = xn[split_index:]                
+                if len(xtrain) == 0 or len(xtests) == 0 :                    
+                    continue # Not Enough Effective Samples
                         
                 clf = RandomForestClassifier(n_estimators=est,
                                      class_weight='balanced',
@@ -360,18 +367,18 @@ for code in codes_names.keys() :
                 success = 'No'                
             
             best_cur = int(best_cur*100)/100
-            dt1 = [code,samples,best_lXN,int(avg_volume),int(threshold)]
+            dt1 = [code,bt,samples,best_lXN,int(avg_volume),int(threshold)]
             dt2 = [success,best_cur,y_enigma,btp_change,chp,best_xEf,best_rbf]
             analytics.append(dt1+dt2)
             break                
         
-    if pcc%100 == 0 :
+    if pcc%50 == 0 :
         mtT = 'PctsW St {} {}_{} ( {}_% )'
         iTime = initTime.strftime('%H_%M')
         pgText = mtT.format(iTime,pcc,lenCodes,int(pcc*100/lenCodes))
         mailer.SendEmail(pgText,None)
         
-    if pcc > 400 :
+    if pcc > 100 :
         break
     
 if not os.path.exists('results'):
