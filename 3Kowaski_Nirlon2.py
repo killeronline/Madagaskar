@@ -29,6 +29,7 @@ split = 50 # can be modified to increase the train and test cases
 mailer = Mailers.MailClient()
 metadata = Helpers.MetaData()
 codes_names = metadata.codes
+healthy_codes_names = metadata.healthy_codes
 #codes_nirlon = ['BOM500307'] #NIRLON
 code_single = ['BOM531628']
 code_disasters = ['BOM509020']
@@ -41,7 +42,8 @@ initTime = datetime.datetime.now()
 header1 = ['Code','Bt','Samples','lenXN','Volume','Threshold']
 header2 = ['Success','Strength','Prediction','Change','Chp','xEf','Rbf']
 analytics = [header1 + header2]
-for code in codes_names.keys() :
+#for code in codes_names.keys() :
+for code in healthy_codes_names.keys() :    
 #for code in code_single :
 #for code in codes_nirlon :
 #for code in code_disasters :
@@ -372,13 +374,13 @@ for code in codes_names.keys() :
             analytics.append(dt1+dt2)
             break                
         
-    if pcc%50 == 0 :
+    if pcc%10 == 0 :
         mtT = 'PctsW St {} {}_{} ( {}_% )'
         iTime = initTime.strftime('%H_%M')
         pgText = mtT.format(iTime,pcc,lenCodes,int(pcc*100/lenCodes))
         mailer.SendEmail(pgText,None)
         
-    if pcc > 100 :
+    if pcc > 20 :
         break
     
 if not os.path.exists('results'):

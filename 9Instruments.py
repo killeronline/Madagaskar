@@ -30,7 +30,7 @@ for i in range(lenDF):
         allowed.append(token+','+scrip+','+name+'\n')
         
 contents = ''.join(allowed)
-f = open('allowed/AllowedCodes.csv','w')
+f = open('allowed/HealthyMisCodes.csv','w')
 f.write(contents)
 f.close()        
         
