@@ -57,7 +57,9 @@ else :
                     
             
 metadata = Helpers.MetaData()
-codes = metadata.healthy_codes.keys()
+#codes = metadata.healthy_codes.keys()
+codes = metadata.codes.keys()
+
 numericcodes = []
 ncode_data = {}
 for code in codes:
@@ -88,6 +90,7 @@ for date in dates:
         tt = (et-st).seconds
         #print('Processed csv file with code',date,'in',tt,'seconds')        
 
+print('Updating Tables...')
 
 # Judgement Day
 database_path=os.path.join('database','main.db')
@@ -96,36 +99,38 @@ for ncode in numericcodes:
     table = 'BOM'+ncode
     cursor=conn.cursor()    
     query = 'select id,Date from '+table+' order by id desc limit 1'
-    cursor.execute(query)
-    last_row = cursor.fetchone()
-    last_ider = last_row[0]
-    last_date = last_row[1]
-    last_date = datetime.datetime.strptime(last_date, "%Y-%m-%d").date()
-    #print(ncode,last_date)
-    fill_rows = []
-    eff_id = int(last_ider) # effective_id
-    for arr in ncode_data[ncode]:        
-        trade_date = datetime.datetime.strptime(arr[0], "%d%m%y").date()
-        #print(trade_date)
-        if trade_date > last_date :
-            new_bhav_row = []
-            dddate = trade_date.strftime("%Y-%m-%d")                        
-            oprice = arr[1]
-            hprice = arr[2]
-            lprice = arr[3]
-            cprice = arr[4]
-            volume = float(arr[5]) # REAL type in sqlite db
-            eff_id += 1 # Auto Increment Primary Key
-            row_tuple = (eff_id,dddate,oprice,hprice,lprice,cprice,volume)
-            fill_rows.append(row_tuple)
-            
-    nfill = len(fill_rows)
-    if nfill > 0:
-        bulk_insert_query = 'insert into '+table+' values (?,?,?,?,?,?,?)'
-        conn.executemany(bulk_insert_query,fill_rows) 
-        conn.commit()
-        print("Committed table",ncode,"Updated",nfill,"rows")     
-        
+    try :
+        cursor.execute(query)
+        last_row = cursor.fetchone()
+        last_ider = last_row[0]
+        last_date = last_row[1]
+        last_date = datetime.datetime.strptime(last_date, "%Y-%m-%d").date()
+        #print(ncode,last_date)
+        fill_rows = []
+        eff_id = int(last_ider) # effective_id
+        for arr in ncode_data[ncode]:        
+            trade_date = datetime.datetime.strptime(arr[0], "%d%m%y").date()
+            #print(trade_date)
+            if trade_date > last_date :
+                new_bhav_row = []
+                dddate = trade_date.strftime("%Y-%m-%d")                        
+                oprice = arr[1]
+                hprice = arr[2]
+                lprice = arr[3]
+                cprice = arr[4]
+                volume = float(arr[5]) # REAL type in sqlite db
+                eff_id += 1 # Auto Increment Primary Key
+                row_tuple = (eff_id,dddate,oprice,hprice,lprice,cprice,volume)
+                fill_rows.append(row_tuple)
+                
+        nfill = len(fill_rows)
+        if nfill > 0:
+            bulk_insert_query = 'insert into '+table+' values (?,?,?,?,?,?,?)'
+            conn.executemany(bulk_insert_query,fill_rows) 
+            conn.commit()
+            print("Committed table",ncode,"Updated",nfill,"rows")     
+    except :
+        print('Table Not Found:',table)
 conn.close()  
 
 

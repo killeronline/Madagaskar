@@ -37,7 +37,7 @@ def get_health(i,code,name,filename,percent):
         # Dropping the 5 Rs Stocks        
         lenDF = len(df)
         avg = sum(df[cpriceColumnName])/lenDF
-        if avg < 5 :
+        if avg < 10 :
             return None
 
         line = str(i)+','+code+','+name+','                     

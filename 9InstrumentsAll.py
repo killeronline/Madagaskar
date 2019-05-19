@@ -17,20 +17,14 @@ for i in range(lenDF):
         name = df['name'][i]
         symbols[symbol] = [token,name]
 
-# Allowed Symbols, Tokens, Names
-mis_filename = os.path.join('allowed','MisAllowed.csv')
-df = pd.read_csv(mis_filename) 
-lenDF = len(df)
-allowed = ['code,tradingsymbol,name\n']
-for i in range(lenDF):
-    scrip = df['code'][i]
-    if scrip in symbols :
-        token = symbols[scrip][0]
-        name = symbols[scrip][1]        
-        allowed.append(token+','+scrip+','+name+'\n')
+alltokens = ['code,tradingsymbol,name\n']
+for symbol in symbols.keys():
+    token = symbols[symbol][0]
+    name = symbols[symbol][1]
+    alltokens.append(token+','+symbol+','+name+'\n')    
         
-contents = ''.join(allowed)
-f = open('allowed/AllowedCodes.csv','w')
+contents = ''.join(alltokens)
+f = open('allowed/AllTokenCodes.csv','w')
 f.write(contents)
 f.close()        
         

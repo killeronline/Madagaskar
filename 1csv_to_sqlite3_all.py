@@ -31,9 +31,11 @@ if os.path.exists(database_path):
 # Create Database
 conn=sql.connect(database_path)
    
+total = len(codes)
 i = 0
 for code in codes:
     i += 1
+    print('Running ',i,'/',total)
     csv_file_path = os.path.join('datasets',code+'.csv')
     if os.path.exists(csv_file_path):
         df = pd.read_csv(csv_file_path)       

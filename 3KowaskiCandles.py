@@ -1,10 +1,11 @@
 # Load libraries
 import os
-import csv
+import csv                                                    # analysis:ignore
+import cfg
 import sys                                                    # analysis:ignore
 import talib
 import Helpers
-import Mailers
+import Mailers                                                # analysis:ignore
 import warnings
 import datetime
 import numpy as np
@@ -18,6 +19,7 @@ warnings.filterwarnings("ignore")
 
 #%matplotlib qt
 def analysis(code,m,mz,chp,est,split,bt):
+    verbose = False
     st = datetime.datetime.now()
     database_path=os.path.join('database','main.db')
     conn=sql.connect(database_path)    
@@ -43,7 +45,8 @@ def analysis(code,m,mz,chp,est,split,bt):
         btp = ((btc-bto)*100)/bto        
         df = df[:bti]
         
-    print("==================================================================")            
+    if verbose :
+        print("==================================================================")            
     # Cleaning Data
     # Remove All Non Traded Days ( Volume = 0 )
     df = df[df[volumeColumnName]>0]
@@ -60,7 +63,7 @@ def analysis(code,m,mz,chp,est,split,bt):
         return None
     
     # 5 Rs Stocks
-    if last_close < 5 :
+    if last_close < 10 :
         print('Low Cap Stock')
         return None
     
@@ -217,7 +220,7 @@ def analysis(code,m,mz,chp,est,split,bt):
     y = np.array(y).astype(float)    
     
     
-    print('Started Grids')        
+    #print('Started Grids')        
     len_data = len(x)
     train_percentage = split
     split_index = (len_data * train_percentage)//100
@@ -226,13 +229,12 @@ def analysis(code,m,mz,chp,est,split,bt):
     xtests = x[split_index:]
     ytests = y[split_index:]
 
-    classbalance_y = sum(y)/len(y)
-    classbalance_ytrain = sum(ytrain)/len(ytrain)
-    classbalance_ytests = sum(ytests)/len(ytests)
-    
-    print("balance y          \t",classbalance_y)
-    print("balance ytrain     \t",classbalance_ytrain)
-    print("balance ytests     \t",classbalance_ytests)        
+    #classbalance_y = sum(y)/len(y)
+    #classbalance_ytrain = sum(ytrain)/len(ytrain)
+    #classbalance_ytests = sum(ytests)/len(ytests)    
+    #print("balance y          \t",classbalance_y)
+    #print("balance ytrain     \t",classbalance_ytrain)
+    #print("balance ytests     \t",classbalance_ytests)        
     
 
     fc = len(xtrain[0])    
@@ -282,7 +284,7 @@ def analysis(code,m,mz,chp,est,split,bt):
         cur_prec = metrics.precision_score(ytests, y_pred)    
         cur_recall = metrics.recall_score(ytests, y_pred)    
         cur_f1score = metrics.f1_score(ytests, y_pred, average=f1avg)
-        mtn, mfp, mfn, mtp = metrics.confusion_matrix(ytests, y_pred).ravel()                                
+        #mtn, mfp, mfn, mtp = metrics.confusion_matrix(ytests, y_pred).ravel()                                
         prisma1 = (cur1 > best1)
         prisma2 = (cur1==best1 and cur2 > best2)
         prisma3 = (cur1==best1 and cur2 == best2 and cur9 > best9)
@@ -321,16 +323,20 @@ def analysis(code,m,mz,chp,est,split,bt):
     print("Company Code     \t",code)        
     print("Feature Count    \t",best_feature_count)
     '''
-    print("F1Sc             \t",best_f1score)
-    print("Recall           \t",best_recall)
-    print("Accuracy         \t",best_acc)
-    print("Precision        \t",best_prec)
-    print("Feature Count    \t",best_feature_count)
+    
+    if verbose :
+        print("F1Sc             \t",best_f1score)
+        print("Recall           \t",best_recall)
+        print("Accuracy         \t",best_acc)
+        print("Precision        \t",best_prec)
+        print("Feature Count    \t",best_feature_count)
     
     et = datetime.datetime.now()
     tt = (et-st).seconds    
     timetaken = str(tt//60)+' Mins '+str(tt%60)+' Seconds'
-    print('\n'+timetaken)
+    
+    if verbose :
+        print('\n'+timetaken)
     
     # half blood = second bull impact relative to magnitude of first bull
     # op = i open prices
@@ -368,9 +374,10 @@ def analysis(code,m,mz,chp,est,split,bt):
     #result.extend(best_halfbs)    
     y_signal = yfinal[0]
     y_bull_rounded = int(ybull*100)/100
-    best_acc_rounded = int(best_acc*100)/100    
+    #best_acc_rounded = int(best_acc*100)/100 
+    best_prec_rounded = int(best_prec*100)/100
     
-    clean = [last_date_str,last_close,best_acc_rounded,y_bull_rounded,y_signal]
+    clean = [last_date_str,last_close,best_prec_rounded,y_bull_rounded,y_signal]
     if bt > 0 :
         return clean + best_bcktst
     else :
@@ -378,13 +385,13 @@ def analysis(code,m,mz,chp,est,split,bt):
 
 # Main of Kowaski  
 # def analysis(code,m,mz,chp,est,split):        
+# Generic Hypers
 m = 4
 mz = 2
 bt = 1
-metadata = Helpers.MetaData()
-chp = metadata.chp
 est = 1000 # can be moved to 1000 to check increase in accuracy
 split = 80 # can be modified to increase the train and test cases
+chp = cfg.zen.chp
 headers1 = ['Code','PastDays','FutureDays','ChangeInPercentage','Estimators']
 headers2 = ['Total Time Taken','Seconds']
 headers3 = ['Precision','Accuracy','Recall','F1Score']
@@ -393,35 +400,57 @@ headers5 = ['ActualChange','Success']
 headers6 = ['Code','Name']
 #headers' = ['HalfBloodPrince','RegressedClose']
 #headers = headers1 + headers2 + headers3 + headers4 + headers5 + headers6
-headers = ['Last Traded Date','Last Close','Accuracy']
+headers = ['Last Traded Date','Last Close','Precision']
 headers += ['Whiskey Bulls','Buy/Short']
 if bt > 0 :
     headers += ['Actual Change','Success']
     
 headers += ['BSE Code','Stock Name']
 results = [headers]
+metadata = Helpers.MetaData()
 codes_names = metadata.healthy_codes
+wins = 0
+loss = 0
+tots = 0
+quality_missed = 0
 skipped_code_count = 0
+iterated_code_count = 0
 processed_code_count = 0
-for (code,name) in codes_names.items():
-    processed_code_count += 1
+for (code,name) in codes_names.items():    
+    iterated_code_count += 1
+    print('Iterating Code',iterated_code_count)
     result = analysis(code,m,mz,chp,est,split,bt)
     # Accuracy > 60% and Bulls are Top 40% and Bears are Bottom 40%
-    if result and result[2] > 0.6 and (result[3] < 0.4 or result[3] > 0.6 ):
-        results.append(result+[code,name])   
-        #results.append(result+[code,name])   
-        #results.append(result)       
-        print('Processed Code',code,'index',processed_code_count)
+    if result :
+        processed_code_count += 1
+        print('Processed Code',code,'index',processed_code_count)                
+        #if result[2] > 0.6 and
+        if result[2] > 0.6 and (result[3] < 0.4 or result[3] > 0.6) and result[4] > 1 :        
+            tots += 1
+            if result[6] == 'Yes' :
+                wins += 1
+            else :
+                loss += 1
+            
+            results.append(result+[code,name])   
+            #results.append(result+[code,name])   
+            #results.append(result)       
+        else :
+            quality_missed += 1
+            
     else :
         skipped_code_count += 1
-        
-if processed_code_count == 0 :
-    processed_code_count += 1
-    
-print('Skipped %',skipped_code_count/processed_code_count)
 
-
-
+#print('Filter',quality_missed)    
+#print('Skipped',skipped_code_count)
+#print('Iterated',iterated_code_count)
+#print('Processed',processed_code_count)    
+print('******************************')
+print('chp',chp)
+if bt > 0 and tots > 0 :
+    print('Process        \t',processed_code_count)
+    print('Quality        \t',tots)
+    print('Success Rate   \t',wins/tots)
 
 
 if not os.path.exists('results'):
@@ -433,9 +462,10 @@ resultfilepath = os.path.join('results',resultfilename)
 with open(resultfilepath,'w+',newline='') as csv_file:
     csvWriter = csv.writer(csv_file,delimiter=',')
     csvWriter.writerows(results)
+
     
-#mailer = Mailers.MailClient()
-#mailer.SendEmail(resultfilename,resultfilename)
+mailer = Mailers.MailClient()
+mailer.SendEmail(resultfilename,resultfilename)
 
 
 
