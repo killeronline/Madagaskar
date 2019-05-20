@@ -45,7 +45,7 @@ codes_names = metadata.healthy_codes
 codes = codes_names.keys()
 lenCodes = len(codes_names)
 initTime = datetime.datetime.now()
-header1 = ['Code','Name','Samples','lenXN','Threshold']
+header1 = ['Code','Samples','lenXN','Threshold']
 header2 = ['Success','Strength','Change','Chp']
 analytics = [header1 + header2]
 for code in codes :
@@ -376,25 +376,27 @@ for code in codes :
                 btp_change = ''
             
             # Result Filters
-            if ( y_enigma == 1 and avg_volume > 100000 and best_lXN > 3 ):
+            filter1 = y_enigma == 1 and avg_volume > 100000 and best_lXN > 3
+            filter2 = samples > 100 and threshold < 30
+            if ( filter1 and filter2 ):
                 best_cur = int(best_cur*100)/100                
-                dt1 = [code,name,samples,best_lXN,int(threshold)]
+                dt1 = [name[0]+code[4:],samples,best_lXN,int(threshold)]
                 dt2 = [success,best_cur*100,btp_change,chp]
                 analytics.append(dt1+dt2)
                 break
             
-                
-    progress = (pcc*100)//lenCodes
-    if progress%25 == 0 :
+                    
+    if pcc%200 == 0 :
+        progress = (pcc*100)//lenCodes
         mtT = 'PctsW St {} {}_{} ( {}_% )'
-        iTime = initTime.strftime('%H_%M')
+        iTime = initTime.strftime('%H_%M')        
         pgText = mtT.format(iTime,pcc,lenCodes,progress)
         mailer.SendEmail(pgText,None)
             
-    '''
-    if pcc > 40 :
+    
+    if pcc > 20 :
         break    
-    '''
+    
     
 if not os.path.exists('results'):
     os.makedirs('results')
