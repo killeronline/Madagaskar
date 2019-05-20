@@ -17,10 +17,11 @@ from sklearn.ensemble import RandomForestClassifier           # analysis:ignore
 warnings.filterwarnings("ignore")    
 
 #%matplotlib qt
-
+'''
 LD_LIBRARY_PATH = 'LD_LIBRARY_PATH'
 hardpath = '/home/sathishphanikurella/Kowaski/LinuxTalib/cTalib/lib'
 os.environ[LD_LIBRARY_PATH] = hardpath
+'''
     
 # After updating paths
 import talib
