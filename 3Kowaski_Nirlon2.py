@@ -28,8 +28,9 @@ import talib
 
 m = 4
 mz = 2
-bt = 1
-#bt = int(input('Enter Bt Value:'))
+bt = 0
+bt = int(input('Enter Bt Value:'))
+print('Is Back Test ?',bt)
 est = 1000 # can be moved to 1000 to check increase in accuracy
 split = 50 # can be modified to increase the train and test cases
 
@@ -370,26 +371,31 @@ for code in healthy_codes_names.keys() :
                         best_rbf += str(rbj)+'_' 
                 
         if y_enigma >=0 :
-            if (y_enigma == 1 and btp > 0) or (y_enigma == 0 and btp < 0) :
-                success = 'Yes'
+            if bt > 0 :
+                if (y_enigma == 1 and btp > 0) or (y_enigma == 0 and btp < 0) :
+                    success = 'Yes'
+                else :
+                    success = 'No'                
             else :
-                success = 'No'                
+                success = ''
+                btp_change = ''
             
             best_cur = int(best_cur*100)/100
             dt1 = [code,bt,samples,best_lXN,int(avg_volume),int(threshold)]
             dt2 = [success,best_cur,y_enigma,btp_change,chp,best_xEf,best_rbf]
             analytics.append(dt1+dt2)
             break                
-        
-    if pcc%50 == 0 :
+            
+                
+    if pcc%100 == 0 :
         mtT = 'PctsW St {} {}_{} ( {}_% )'
         iTime = initTime.strftime('%H_%M')
         pgText = mtT.format(iTime,pcc,lenCodes,int(pcc*100/lenCodes))
         mailer.SendEmail(pgText,None)
-        
+            
     '''
-    if pcc > 400 :
-        break
+    if pcc > 40 :
+        break    
     '''
     
 if not os.path.exists('results'):

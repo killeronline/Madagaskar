@@ -31,7 +31,7 @@ for i in range(past+1):# including today and early morning bhavcopy (fail safe)
         datevalue = ''.join(datestr)            
         dates.append(datevalue)
 
-Skip = True
+Skip = False
 if Skip :
     print('Note : Skip is set to True, Downloads are disabled.')
 else :    
