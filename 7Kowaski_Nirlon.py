@@ -393,9 +393,10 @@ for code in codes :
         pgText = mtT.format(iTime,pcc,lenCodes,progress)
         mailer.SendEmail(pgText,None)
             
-    
+    '''
     if pcc > 20 :
         break    
+    '''
     
     
 if not os.path.exists('results'):
