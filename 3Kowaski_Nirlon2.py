@@ -22,6 +22,8 @@ LD_LIBRARY_PATH = 'LD_LIBRARY_PATH'
 hardpath = '/home/sathishphanikurella/Kowaski/LinuxTalib/cTalib/lib'
 os.environ[LD_LIBRARY_PATH] = hardpath
 '''
+# L E G E N D
+# BOM500307 NIRLON
     
 # After updating paths
 import talib
@@ -31,33 +33,26 @@ mz = 2
 bt = 0
 bt = int(input('Enter Bt Value:'))
 print('Is Back Test ?',bt)
+
+pcc = 0
 est = 1000 # can be moved to 1000 to check increase in accuracy
 split = 50 # can be modified to increase the train and test cases
 
 mailer = Mailers.MailClient()
 metadata = Helpers.MetaData()
-codes_names = metadata.codes
-healthy_codes_names = metadata.healthy_codes
-#codes_nirlon = ['BOM500307'] #NIRLON
-code_single = ['BOM531628']
-code_disasters = ['BOM509020']
-#code_disasters += ['BOM531802','BOM517334','BOM505800','BOM500333']
-#code_disasters = ['BOM532461','BOM532486','BOM532711','BOM530175','BOM533632']
-#if code is not None :
-pcc = 0
-lenCodes = len(codes_names.keys())
+codes_names = metadata.healthy_codes
+
+codes = codes_names.keys()
+lenCodes = len(codes_names)
 initTime = datetime.datetime.now()
-header1 = ['Code','Bt','Samples','lenXN','Volume','Threshold']
-header2 = ['Success','Strength','Prediction','Change','Chp','xEf','Rbf']
+header1 = ['Code','Name','Samples','lenXN','Threshold']
+header2 = ['Success','Strength','Change','Chp']
 analytics = [header1 + header2]
-#for code in codes_names.keys() :
-for code in healthy_codes_names.keys() :    
-#for code in code_single :
-#for code in codes_nirlon :
-#for code in code_disasters :
+for code in codes :
 #def analysis(code,m,mz,chp,est,split,bt):
-    pcc += 1    
+    pcc += 1        
     verbose = True
+    name = codes_names[code]
     st = datetime.datetime.now()
     database_path=os.path.join('database','main.db')
     conn=sql.connect(database_path)
@@ -380,17 +375,20 @@ for code in healthy_codes_names.keys() :
                 success = ''
                 btp_change = ''
             
-            best_cur = int(best_cur*100)/100
-            dt1 = [code,bt,samples,best_lXN,int(avg_volume),int(threshold)]
-            dt2 = [success,best_cur,y_enigma,btp_change,chp,best_xEf,best_rbf]
-            analytics.append(dt1+dt2)
-            break                
+            # Result Filters
+            if ( y_enigma == 1 and avg_volume > 100000 and best_lXN > 3 ):
+                best_cur = int(best_cur*100)/100                
+                dt1 = [code,name,samples,best_lXN,int(threshold)]
+                dt2 = [success,best_cur*100,btp_change,chp]
+                analytics.append(dt1+dt2)
+                break
             
                 
-    if pcc%100 == 0 :
+    progress = (pcc*100)//lenCodes
+    if progress%25 == 0 :
         mtT = 'PctsW St {} {}_{} ( {}_% )'
         iTime = initTime.strftime('%H_%M')
-        pgText = mtT.format(iTime,pcc,lenCodes,int(pcc*100/lenCodes))
+        pgText = mtT.format(iTime,pcc,lenCodes,progress)
         mailer.SendEmail(pgText,None)
             
     '''
