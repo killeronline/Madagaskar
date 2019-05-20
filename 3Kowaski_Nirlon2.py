@@ -19,9 +19,8 @@ warnings.filterwarnings("ignore")
 #%matplotlib qt
 
 LD_LIBRARY_PATH = 'LD_LIBRARY_PATH'
-if LD_LIBRARY_PATH in os.environ :
-    hardpath = '/home/sathishphanikurella/Kowaski/LinuxTalib/cTalib/lib'
-    os.environ[LD_LIBRARY_PATH] = hardpath
+hardpath = '/home/sathishphanikurella/Kowaski/LinuxTalib/cTalib/lib'
+os.environ[LD_LIBRARY_PATH] = hardpath
     
 # After updating paths
 import talib
