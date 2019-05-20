@@ -3,7 +3,6 @@ import os
 import csv                                                    # analysis:ignore
 import cfg                                                    # analysis:ignore
 import sys                                                    # analysis:ignore
-import talib
 import Helpers                                                # analysis:ignore
 import Mailers                                                # analysis:ignore
 import warnings
@@ -18,6 +17,14 @@ from sklearn.ensemble import RandomForestClassifier           # analysis:ignore
 warnings.filterwarnings("ignore")    
 
 #%matplotlib qt
+
+LD_LIBRARY_PATH = 'LD_LIBRARY_PATH'
+if LD_LIBRARY_PATH in os.environ :
+    hardpath = '/home/sathishphanikurella/Kowaski/LinuxTalib/cTalib/lib'
+    os.environ[LD_LIBRARY_PATH] = hardpath
+    
+# After updating paths
+import talib
 
 m = 4
 mz = 2
