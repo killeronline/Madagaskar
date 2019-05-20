@@ -1,0 +1,39 @@
+mkdir kowaski
+cd kowaski
+sudo apt update
+sudo apt install git
+git clone https://github.com/killeronline/Madagaskar.git
+echo 'password' > zemail.txt
+echo 'sathishphanikurella@gmail.com' >> zemail.txt
+echo 'sathishphanikurella@gmail.com' >> zemail.txt
+cat zemail.txt
+
+curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+sudo python3 get-pip.py
+sudo python3 -m pip install numpy
+sudo python3 -m pip install pandas
+sudo python3 -m pip install sklearn
+sudo python3 -m pip install matplotlib
+
+sudo su
+apt-get update && apt-get install build-essential
+--sudo get update && apt-get install build-essential
+sudo apt install python python-dev python3 python3-dev
+
+
+tar -xzf ta-lib-0.4.0-src.tar.gz
+cd ta-lib
+mkdir /home/sathishphanikurella/kowaski/LinuxTalib
+mkdir /home/sathishphanikurella/kowaski/LinuxTalib/cTalib
+./configure --prefix=/home/sathishphanikurella/kowaski/LinuxTalib/cTalib
+make
+sudo make install
+
+/home/sathishphanikurella/kowaski/LinuxTalib/cTalib/lib
+export LD_LIBRARY_PATH='/home/sathishphanikurella/kowaski/LinuxTalib/cTalib/lib'
+export TA_LIBRARY_PATH='/home/sathishphanikurella/kowaski/LinuxTalib/cTalib/lib'
+export TA_INCLUDE_PATH='/home/sathishphanikurella/kowaski/LinuxTalib/cTalib/include'
+sudo python3 -m pip install ta-lib
+
+
+sudo python3 -m pip install --upgrade --force-reinstall ta-lib
