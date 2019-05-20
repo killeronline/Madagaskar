@@ -37,3 +37,24 @@ sudo python3 -m pip install ta-lib
 
 
 sudo python3 -m pip install --upgrade --force-reinstall ta-lib
+
+sudo update-alternatives --config python
+sudo update-alternatives --install /usr/bin/python python /usr/bin/python3.5 1
+sudo update-alternatives --config python
+
+mkdir database
+wget https://www.dropbox.com/s/ra4rua2cj0959a7/main.7z
+
+sudo apt-get install p7zip-full
+7za x myfile.tar.7z
+
+tmux
+https://askubuntu.com/questions/8653/how-to-keep-processes-running-after-ending-ssh-session
+
+sudo apt-get install tmux
+$tmux
+run the required script
+ctrl+b and ctrl+d detaches the tmux shell
+tmux list-sessions
+tmux attach-session -t 0
+now attach to a running session with command tmux attach-session -t 0.
