@@ -28,7 +28,7 @@ import talib
 
 m = 4
 mz = 2
-bt = 1
+bt = 2
 
 pcc = 0
 est = 1000 # can be moved to 1000 to check increase in accuracy
@@ -37,12 +37,10 @@ split = 50 # can be modified to increase the train and test cases
 mailer = Mailers.MailClient()
 metadata = Helpers.MetaData()
 codes_names = metadata.healthy_codes
-
-codes = codes_names.keys()
 lenCodes = len(codes_names)
+codes = codes_names.keys()
 analytics = [['Code','Name','...']]
 initTime = datetime.datetime.now()
-
 #codes = ['BOM512531'] # SCI
 #codes = ['BOM532488'] # DIVIS
 for code in codes :
@@ -218,6 +216,9 @@ for code in codes :
             impactJ.append(j)
             impactCDL.append(cdl_J)
     LenJ = len(impactJ)
+    if LenJ == 0 :
+        print('No Patterns Found, Code',code)
+        continue
     
     xLee = []
     a,b = xPrime.shape
@@ -279,11 +280,11 @@ for code in codes :
         score = 0
         y_enigma = 0
         strength = z_pos/z_tot        
-        gainLoss = 'Loss'
+        gainLoss = 'Sell'
         if strength > 0.5 :
             y_enigma = 1
             score = (2*strength) - 1.0
-            gainLoss = 'Gain'
+            gainLoss = 'Buy'
         else :
             y_enigma = 0            
             score = 1.0 - (2*strength)
@@ -299,10 +300,16 @@ for code in codes :
             success = ''
             btp_change = ''            
                 
-        if avg_volume > 10000 :                            
-            dt1 = [last_date_str,last_close,code,name,gainLoss]
-            dt2 = [score,btp_change,success]
-            analytics.append(dt1+dt2)     
+        limit = 100000
+        if avg_volume > limit :                            
+            avg_volume = avg_volume/limit
+            avg_volume = int(avg_volume)
+            zen = str(z_pos)+'_'+str(z_neg)+'_'+str(z_tot)
+            dtS = [last_date_str,last_close,avg_volume,code,name]
+            dtS += [gainLoss,score,zen,LenJ]
+            if bt > 0 :
+                dtS += [btp_change,success]
+            analytics.append(dtS)     
             
     if pcc%200 == 0 :
         progress = (pcc*100)//lenCodes
@@ -310,16 +317,16 @@ for code in codes :
         iTime = initTime.strftime('%H_%M')        
         pgText = mtT.format(iTime,pcc,lenCodes,progress)
         mailer.SendEmail(pgText,None)
-        
+    
     if pcc > 20 :
         break
-        
 '''
 Sending Results
 '''        
-header1 = ['LTDate','LTClose','Code','Name','GL']
-header2 = ['Score','BTChp','BTValidate']
-analytics[0] = header1 + header2
+header = ['LTDate','LTClose','V','Code','Name','GL','Score','Zen','LenJ']
+if bt > 0 :
+    header += ['BTChp','BTValidate']
+analytics[0] = header
                 
 if not os.path.exists('results'):
     os.makedirs('results')
