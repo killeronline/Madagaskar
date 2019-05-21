@@ -9,7 +9,6 @@ import datetime
 os.environ['TZ'] = 'Asia/Kolkata'
 
 
-adjust = True
 instant = True
 elapsed_hours = 0
 while True :
@@ -52,12 +51,8 @@ while True :
         print('Manual Run Complete.')
         instant = False
     
-    rem_minutes = 60
-    if adjust :
-        rem_minutes = 60 - int(time.strftime('%M'))
-        adjust = False        
-    
-    # Sleep
+    # Sleep    
+    rem_minutes = 60 - int(time.strftime('%M'))            
     print('Sleeping ',rem_minutes,'Minutes')
     rem_seconds = (rem_minutes+1)*60
     time.sleep(rem_seconds) # 1 Hour

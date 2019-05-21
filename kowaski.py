@@ -42,7 +42,7 @@ codes = codes_names.keys()
 lenCodes = len(codes_names)
 initTime = datetime.datetime.now()
 header1 = ['Code','Name','Samples','LenXN','Threshold']
-header2 = ['Strength','Chp']
+header2 = ['Strength','Chp','LTClose','LTDate']
 analytics = [header1 + header2]
 for code in codes :
 #def analysis(code,m,mz,chp,est,split,bt):
@@ -377,7 +377,7 @@ for code in codes :
             if ( filter1 and filter2 ):
                 best_cur = int(best_cur*100)/100                
                 dt1 = [code,name,samples,best_lXN,int(threshold)]
-                dt2 = [best_cur*100,chp]
+                dt2 = [best_cur*100,chp,last_close,last_date_str]
                 analytics.append(dt1+dt2)
                 break
                 
