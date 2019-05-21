@@ -6,6 +6,9 @@ import pandas as pd
 import sqlite3 as sql
 from zipfile import ZipFile
 
+zipExt = '.zip'
+csvExt = '.CSV' # In Linux, Check is Case Sensitive
+
 past = 30
 delta = datetime.timedelta(days=1)
 i_date = datetime.datetime.now()
@@ -41,11 +44,11 @@ else :
     baseurl = 'https://www.bseindia.com/download/BhavCopy/Equity/'
     for date in dates:
         file_name = 'EQ_ISINCODE_'+date
-        bhav_csv_file_path = os.path.join('bhav',file_name+'.csv')
-        bhav_zip_file_path = os.path.join('bhav',file_name+'.zip')
+        bhav_csv_file_path = os.path.join('bhav',file_name+csvExt)
+        bhav_zip_file_path = os.path.join('bhav',file_name+zipExt)
         if not os.path.exists(bhav_csv_file_path):
             try:
-                url = baseurl+file_name+'.zip'
+                url = baseurl+file_name+zipExt
                 #print(url)
                 print('Fetching bhav copy for',date)
                 wget.download(url,bhav_zip_file_path)                        
@@ -70,7 +73,7 @@ for code in codes:
 tables = {}
 for date in dates:    
     file_name = 'EQ_ISINCODE_'+date
-    bhav_csv_file_path = os.path.join('bhav',file_name+'.csv')
+    bhav_csv_file_path = os.path.join('bhav',file_name+csvExt)
     if os.path.exists(bhav_csv_file_path):
         st = datetime.datetime.now()
         df = pd.read_csv(bhav_csv_file_path)
@@ -88,9 +91,10 @@ for date in dates:
             ncode_data[scode].append(ncode_bhav_arr)            
         et = datetime.datetime.now()
         tt = (et-st).seconds
-        #print('Processed csv file with code',date,'in',tt,'seconds')        
+        print('Processed Csv File',date,'in',tt,'seconds')        
 
 print('Updating Tables...')
+print('Tables Keys:',len(ncode_data))
 
 # Judgement Day
 database_path=os.path.join('database','main.db')
