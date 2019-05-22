@@ -31,12 +31,21 @@ while True :
         except :
             print('Failure : Bhav')
             
+    '''
     # Run Kowaski
     if instant or hour % 6 == 0 :
         try :
             os.system('python kowaski.py')
         except :
             print('Failure : Kowaski')
+    '''
+            
+    # Run Private
+    if instant or hour % 6 == 0 :
+        try :
+            os.system('python private.py')
+        except :
+            print('Failure : Private')
         
     et = datetime.datetime.now()    
     tt = (et-st).seconds    

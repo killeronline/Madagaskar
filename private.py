@@ -28,7 +28,7 @@ import talib
 
 m = 4
 mz = 2
-bt = 2
+bt = 0
 
 pcc = 0
 est = 1000 # can be moved to 1000 to check increase in accuracy
@@ -232,7 +232,9 @@ for code in codes :
     
     chp = 1
     
-    y = []        
+    y = []
+    OH = []        
+    OL = []    
     for i in range(m,n-mz+1):        
         mz_diff = []                
         for mzi in range(1,mz):            
@@ -249,6 +251,16 @@ for code in codes :
             y.append(0)  
         else :
             y.append(-1)
+            
+        # Considering Tomorrow
+        base_z = i + 1
+        ohp = yf[hpriceColumnName][i+1] - yf[opriceColumnName][i+1]
+        olp = yf[opriceColumnName][i+1] - yf[lpriceColumnName][i+1]
+        ohp = (ohp*100)/yf[opriceColumnName][i+1]
+        olp = (olp*100)/yf[opriceColumnName][i+1]
+        OH.append(ohp)
+        OL.append(olp)
+        
         
     '''        
     max_pct = 20
@@ -261,22 +273,43 @@ for code in codes :
     z_neg = 0
     z_tot = 0
     xN, xM = x.shape
+    z_H = 0
+    z_L = 0
     for i in range(xN):   
         match = 0
         for j in range(LenJ) :
             if x[i][j] == impactCDL[j] :
                 match += 1                
         if match == LenJ :
-            if y[i] == 1 :
-                z_pos += 1
-                z_tot += 1
-            elif y[i] == 0 :
-                z_neg += 1
-                z_tot += 1
+            # check for inteference
+            interference = 0
+            for k in range(xM):
+                if k not in impactJ and x[i][k] != 0 :
+                    interference += 1
+                    
+            if interference < 3 :
+                if y[i] == 1 :
+                    z_pos += 1
+                    z_tot += 1
+                    z_H += OH[i]
+                    z_L += OL[i]
+                elif y[i] == 0 :
+                    z_neg += 1
+                    z_tot += 1
+                    z_H += OH[i]
+                    z_L += OL[i]
+                else :
+                    continue    
             
     if z_tot == 0 :
         print('No Supportive Evidence, Code',code)
     else :
+        
+        z_ohp = z_H/z_tot
+        z_olp = z_L/z_tot
+        z_ohp = int(z_ohp*100)/100
+        z_olp = int(z_olp*100)/100
+        
         score = 0
         y_enigma = 0
         strength = z_pos/z_tot        
@@ -301,12 +334,12 @@ for code in codes :
             btp_change = ''            
                 
         limit = 100000
-        if avg_volume > limit :                            
+        if avg_volume > limit and score >= 1 :                            
             avg_volume = avg_volume/limit
             avg_volume = int(avg_volume)
             zen = str(z_pos)+'_'+str(z_neg)+'_'+str(z_tot)
             dtS = [last_date_str,last_close,avg_volume,code,name]
-            dtS += [gainLoss,score,zen,LenJ]
+            dtS += [gainLoss,score,zen,LenJ,z_ohp,-z_olp]
             if bt > 0 :
                 dtS += [btp_change,success]
             analytics.append(dtS)     
@@ -318,12 +351,12 @@ for code in codes :
         pgText = mtT.format(iTime,pcc,lenCodes,progress)
         mailer.SendEmail(pgText,None)
     
-    if pcc > 20 :
-        break
+
 '''
 Sending Results
 '''        
-header = ['LTDate','LTClose','V','Code','Name','GL','Score','Zen','LenJ']
+header = ['LTDate','LTClose','V','Code','Name']
+header += ['GL','Score','Zen','LenJ','zHigh','zLow']
 if bt > 0 :
     header += ['BTChp','BTValidate']
 analytics[0] = header
