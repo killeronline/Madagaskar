@@ -28,7 +28,7 @@ import talib
 
 m = 4
 mz = 2
-bt = 0
+bt = 1
 
 pcc = 0
 est = 1000 # can be moved to 1000 to check increase in accuracy
@@ -41,6 +41,7 @@ lenCodes = len(codes_names)
 codes = codes_names.keys()
 analytics = [['Code','Name','...']]
 initTime = datetime.datetime.now()
+#codes = ['BOM532480'] # Disaster ALBK
 #codes = ['BOM512531'] # SCI
 #codes = ['BOM532488'] # DIVIS
 for code in codes :
@@ -78,12 +79,18 @@ for code in codes :
     
     btp = 0
     btp_change = 0
+    btp_High = 0
+    btp_Low = 0
     if bt > 0 :
         bti = len(df)-bt
         bto = df['Open'][bti]
         btc = df['Close'][bti]
+        bth = ((df['High'][bti] - df['Open'][bti])*100)/df['Open'][bti]
+        btl = ((df['Open'][bti] - df['Low'][bti])*100)/df['Open'][bti]
         btp = ((btc-bto)*100)/bto        
         btp_change = ((int(btp*100))/100)
+        bth_change = ((int(bth*100))/100)
+        btl_change = ((int(btl*100))/100)        
         if abs(btp_change) < 0.5 :
             print('Mixed Stock, Code',code)
             continue
@@ -207,34 +214,11 @@ for code in codes :
     calculatedLenY = n-mz+1-m # Difference of Indices
     xPrime = xPrime[:calculatedLenY] # Dropping Trailing Features  
     
-    _ ,LenLF = lastFeature.shape
-    impactJ = []
-    impactCDL = []
-    for j in range(LenLF):
-        cdl_J = lastFeature[0][j]
-        if cdl_J !=0 :
-            impactJ.append(j)
-            impactCDL.append(cdl_J)
-    LenJ = len(impactJ)
-    if LenJ == 0 :
-        print('No Patterns Found, Code',code)
-        continue
-    
-    xLee = []
-    a,b = xPrime.shape
-    for i in range(a):
-        xtemp = []        
-        for j in impactJ :            
-            xtemp.append(xPrime[i][j])                    
-        xLee.append(xtemp)
-        
-    x = np.array(xLee).astype(float)
-    
-    chp = 1
-    
+    # y = targets
     y = []
     OH = []        
     OL = []    
+    chp = 1
     for i in range(m,n-mz+1):        
         mz_diff = []                
         for mzi in range(1,mz):            
@@ -260,7 +244,24 @@ for code in codes :
         olp = (olp*100)/yf[opriceColumnName][i+1]
         OH.append(ohp)
         OL.append(olp)
-        
+    
+    # x = features
+    x = np.array(xPrime).astype(float)    
+            
+    _ ,LenLF = lastFeature.shape
+    impactJ = []
+    impactStr = []    
+    impactCDL = []
+    for j in range(LenLF):
+        cdl_J = lastFeature[0][j]
+        if cdl_J !=0 :
+            impactJ.append(j)            
+            impactCDL.append(cdl_J)
+            impactStr.append(str(j)+'('+str(cdl_J)+')')
+    LenJ = len(impactJ)
+    if LenJ == 0 :
+        print('No Patterns Found, Code',code)
+        continue            
         
     '''        
     max_pct = 20
@@ -268,48 +269,45 @@ for code in codes :
     plt.hist(y, bins, alpha=0.5, histtype='bar', ec='black')
     plt.show()
     '''
-
+    # Skimming for more relavant x and y
     z_pos = 0
     z_neg = 0
     z_tot = 0
     xN, xM = x.shape
-    z_H = 0
-    z_L = 0
+    z_H = []
+    z_L = []   
     for i in range(xN):   
         match = 0
         for j in range(LenJ) :
-            if x[i][j] == impactCDL[j] :
+            if x[i][impactJ[j]] == impactCDL[j] :
                 match += 1                
-        if match == LenJ :
-            # check for inteference
-            interference = 0
+        if match == LenJ : # Ancestor Record
+            # Check for Inteference
+            noise = 0
             for k in range(xM):
                 if k not in impactJ and x[i][k] != 0 :
-                    interference += 1
+                    noise += 1                    
+                    break
                     
-            if interference < 3 :
-                if y[i] == 1 :
-                    z_pos += 1
+            if noise == 0 :
+                if y[i] >= 1 :                                        
                     z_tot += 1
-                    z_H += OH[i]
-                    z_L += OL[i]
-                elif y[i] == 0 :
-                    z_neg += 1
-                    z_tot += 1
-                    z_H += OH[i]
-                    z_L += OL[i]
+                    z_H.append(OH[i])
+                    z_L.append(OL[i])
                 else :
-                    continue    
+                    continue                
             
     if z_tot == 0 :
         print('No Supportive Evidence, Code',code)
     else :
         
-        z_ohp = z_H/z_tot
-        z_olp = z_L/z_tot
+        z_ohp = sum(z_H)/z_tot
+        z_olp = sum(z_L)/z_tot
         z_ohp = int(z_ohp*100)/100
         z_olp = int(z_olp*100)/100
         
+        costH = 0
+        costL = 0
         score = 0
         y_enigma = 0
         strength = z_pos/z_tot        
@@ -324,24 +322,23 @@ for code in codes :
             
         score = int(score*100.0)/100.0        
         
-        if bt > 0 :
-            if (y_enigma == 1 and btp > 0) or (y_enigma == 0 and btp < 0) :
-                success = 'Pass'
-            else :
-                success = 'Fail'                
-        else :
-            success = ''
-            btp_change = ''            
+        success = 0
+        variance = 0
+        if bt > 0 :                        
+            costH = abs(z_ohp - bth_change)
+            costL = abs(z_olp - btl_change)
+            variance = costL + costH
+            
                 
         limit = 100000
-        if avg_volume > limit and score >= 1 :                            
+        if avg_volume > limit :                            
             avg_volume = avg_volume/limit
-            avg_volume = int(avg_volume)
-            zen = str(z_pos)+'_'+str(z_neg)+'_'+str(z_tot)
+            avg_volume = int(avg_volume)            
+            impactingFts = '_'.join(impactStr)
             dtS = [last_date_str,last_close,avg_volume,code,name]
-            dtS += [gainLoss,score,zen,LenJ,z_ohp,-z_olp]
+            dtS += [gainLoss,score,z_tot,LenJ,z_ohp,-z_olp,impactingFts]            
             if bt > 0 :
-                dtS += [btp_change,success]
+                dtS += [bth_change,-btl_change,btp_change,costH,costL,variance]
             analytics.append(dtS)     
             
     if pcc%200 == 0 :
@@ -356,10 +353,15 @@ for code in codes :
 Sending Results
 '''        
 header = ['LTDate','LTClose','V','Code','Name']
-header += ['GL','Score','Zen','LenJ','zHigh','zLow']
+header += ['GL','Score','Zen','LenJ','zHigh','zLow','Impacts']
 if bt > 0 :
-    header += ['BTChp','BTValidate']
+    header += ['BTHigh','BTLow','BTChp','CostH','CostL','Variance']
 analytics[0] = header
+
+
+if len(analytics) > 1 :    
+    adf = pd.DataFrame(analytics[1:])
+    adf.columns = analytics[0]
                 
 if not os.path.exists('results'):
     os.makedirs('results')
