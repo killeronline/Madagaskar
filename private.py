@@ -28,7 +28,7 @@ import talib
 
 m = 4
 mz = 2
-bt = 1
+bt = 0
 
 pcc = 0
 est = 1000 # can be moved to 1000 to check increase in accuracy
@@ -350,17 +350,19 @@ for code in codes :
             cost = costH + costL
                             
         limit = 100000
-        if avg_volume > limit :                            
+        zinc = z_tot*LenJ
+        # Short Selling Skipped with y_enigma Filter
+        if avg_volume > limit and y_enigma == 1 and z_tot > 1 : 
             avg_volume = avg_volume/limit
             avg_volume = int(avg_volume)            
             impactingFts = '_'.join(impactStr)
-            dtS = [last_date_str,last_close,avg_volume,code,name]
-            dtS += [gainLoss,z_tot,LenJ,impactingFts]            
-            dtS += [z_high_mean,z_high_std,z_low_mean,z_low_std]
-            dtS += [z_mag_mean,z_mag_std]
+            potential = (z_high_mean-z_high_std) + (z_low_mean-z_low_std)
+            dtS = [last_date_str,code,name,last_close,(avg_volume*int(last_close))]
+            dtS += [z_tot,LenJ,zinc,potential,(z_high_std+z_low_std)]
+            dtS += [-(z_low_mean-z_low_std),-(z_low_mean+z_low_std)]
+            dtS += [z_high_mean,z_high_std,z_low_mean,z_low_std]            
             if bt > 0 :
-                dtS += [bth_change,btl_change,btm_change]
-                dtS += [costH,costL,cost]
+                dtS += [bth_change,btl_change,cost]                
             analytics.append(dtS)     
             
     if pcc%200 == 0 :
@@ -370,20 +372,18 @@ for code in codes :
         pgText = mtT.format(iTime,pcc,lenCodes,progress)
         mailer.SendEmail(pgText,None)
         
-    if pcc > 100 :
+    if pcc > 999 :
         break
     
 
 '''
 Sending Results
 '''        
-header = ['LTDate','LTClose','V','Code','Name']
-header += ['GL','Zen','LenJ','Impacts']
+header = ['LTDate','Code','Name','LTClose','Capital']
+header += ['Zen','LenJ','Zinc','Potential','Risk','RiskBuy','SafeBuy']
 header += ['High','HStd','Low','LStd']
-header += ['Mag','MStd']
 if bt > 0 :
-    header += ['BTHigh','BTLow','BTMag']
-    header += ['CostH','CostL','Cost']
+    header += ['BTHigh','BTLow','Cost']    
 analytics[0] = header
 
 
