@@ -90,11 +90,14 @@ for code in codes :
         btp = ((btc-bto)*100)/bto        
         btp_change = ((int(btp*100))/100)
         bth_change = ((int(bth*100))/100)
-        btl_change = ((int(btl*100))/100)        
-        if abs(btp_change) < 0.5 :
+        btl_change = ((int(btl*100))/100)
+        btm_change = bth_change + btl_change
+        df = df[:bti]
+        '''            
+        if abs(bth_change-btl_change) < 0.5 :
             print('Mixed Stock, Code',code)
             continue
-        df = df[:bti]
+        '''        
             
     df = df[df[volumeColumnName]>0]
     df = df.reset_index(drop=True)
@@ -219,31 +222,25 @@ for code in codes :
     OH = []        
     OL = []    
     chp = 1
-    for i in range(m,n-mz+1):        
-        mz_diff = []                
-        for mzi in range(1,mz):            
-            base_z = i + mzi
-            oprice = yf[opriceColumnName][base_z]
-            cprice = yf[cpriceColumnName][base_z]            
-            mz_diff.append(((cprice-oprice)*100)/oprice)                
-        avg_diff = sum(mz_diff)/mz        
-        change = avg_diff                        
-        #y.append( round(change) )        
-        if change > chp :
-            y.append(1)
-        elif change < -chp :
-            y.append(0)  
-        else :
-            y.append(-1)
-            
-        # Considering Tomorrow
+    for i in range(m,n-1):                             
         base_z = i + 1
-        ohp = yf[hpriceColumnName][i+1] - yf[opriceColumnName][i+1]
-        olp = yf[opriceColumnName][i+1] - yf[lpriceColumnName][i+1]
-        ohp = (ohp*100)/yf[opriceColumnName][i+1]
-        olp = (olp*100)/yf[opriceColumnName][i+1]
+        oprice = yf[opriceColumnName][base_z]        
+        hprice = yf[hpriceColumnName][base_z]
+        lprice = yf[lpriceColumnName][base_z]        
+        ohp = hprice - oprice
+        olp = oprice - lprice
+        ohp = (ohp*100)/oprice
+        olp = (olp*100)/oprice        
         OH.append(ohp)
         OL.append(olp)
+        # Remarkable Decision Taken
+        change = ohp - olp              
+        if change > chp :
+            y.append(1) # Signal Buy
+        elif change < -chp :
+            y.append(0) # Signal Sell 
+        else :
+            y.append(-1) # Not Effective            
     
     # x = features
     x = np.array(xPrime).astype(float)    
@@ -276,6 +273,7 @@ for code in codes :
     xN, xM = x.shape
     z_H = []
     z_L = []   
+    OM = []
     for i in range(xN):   
         match = 0
         for j in range(LenJ) :
@@ -294,51 +292,75 @@ for code in codes :
                     z_tot += 1
                     z_H.append(OH[i])
                     z_L.append(OL[i])
+                    OM.append(OH[i]+OL[i])
                 else :
                     continue                
             
     if z_tot == 0 :
         print('No Supportive Evidence, Code',code)
-    else :
+    else :                
+        z_ohp = np.array(z_H).astype(float)
+        z_olp = np.array(z_L).astype(float)
+        z_mag = np.array(OM).astype(float)
         
-        z_ohp = sum(z_H)/z_tot
-        z_olp = sum(z_L)/z_tot
-        z_ohp = int(z_ohp*100)/100
-        z_olp = int(z_olp*100)/100
+        z_high_mean = np.mean(z_ohp)
+        z_low_mean = np.mean(z_olp)
+        z_mag_mean = np.mean(z_mag)
         
-        costH = 0
-        costL = 0
-        score = 0
-        y_enigma = 0
-        strength = z_pos/z_tot        
-        gainLoss = 'Sell'
-        if strength > 0.5 :
-            y_enigma = 1
-            score = (2*strength) - 1.0
-            gainLoss = 'Buy'
-        else :
-            y_enigma = 0            
-            score = 1.0 - (2*strength)
-            
-        score = int(score*100.0)/100.0        
-        
-        success = 0
-        variance = 0
-        if bt > 0 :                        
-            costH = abs(z_ohp - bth_change)
-            costL = abs(z_olp - btl_change)
-            variance = costL + costH
-            
+        z_high_std = np.std(z_ohp)
+        z_low_std = np.std(z_olp)
+        z_mag_std = np.std(z_mag)
                 
+        z_high_mean = int(z_high_mean*100)/100
+        z_low_mean = int(z_low_mean*100)/100
+        z_mag_mean = int(z_mag_mean*100)/100
+        
+        z_high_std = int(z_high_std*100)/100
+        z_low_std = int(z_low_std*100)/100
+        z_mag_std = int(z_mag_std*100)/100
+
+        # Prediction                        
+        z_change = z_high_mean - z_low_mean        
+        if z_change > 0 : # z_high_mean > z_low_mean
+            y_enigma = 1            
+            gainLoss = 'Buy'            
+        else :
+            y_enigma = 0 
+            gainLoss = 'Sell'            
+
+        # Cost Analysis        
+        costH = 0
+        costL = 0        
+        if bt > 0 :             
+            if y_enigma == 1 :                
+                costH = (z_high_mean - z_high_std) - bth_change
+                costL = btl_change - (z_low_mean + z_low_std)                
+            else :                       
+                costH = bth_change - (z_high_mean + z_high_std)
+                costL = (z_low_mean - z_low_std) - btl_change
+                
+            # Clamping High and Low Costs                            
+            if costH < 0 :
+                costH = 0
+                
+            if costL < 0 :
+                costL = 0
+                
+            # Cost Function
+            cost = costH + costL
+                            
         limit = 100000
         if avg_volume > limit :                            
             avg_volume = avg_volume/limit
             avg_volume = int(avg_volume)            
             impactingFts = '_'.join(impactStr)
             dtS = [last_date_str,last_close,avg_volume,code,name]
-            dtS += [gainLoss,score,z_tot,LenJ,z_ohp,-z_olp,impactingFts]            
+            dtS += [gainLoss,z_tot,LenJ,impactingFts]            
+            dtS += [z_high_mean,z_high_std,z_low_mean,z_low_std]
+            dtS += [z_mag_mean,z_mag_std]
             if bt > 0 :
-                dtS += [bth_change,-btl_change,btp_change,costH,costL,variance]
+                dtS += [bth_change,btl_change,btm_change]
+                dtS += [costH,costL,cost]
             analytics.append(dtS)     
             
     if pcc%200 == 0 :
@@ -347,15 +369,21 @@ for code in codes :
         iTime = initTime.strftime('%H_%M')        
         pgText = mtT.format(iTime,pcc,lenCodes,progress)
         mailer.SendEmail(pgText,None)
+        
+    if pcc > 100 :
+        break
     
 
 '''
 Sending Results
 '''        
 header = ['LTDate','LTClose','V','Code','Name']
-header += ['GL','Score','Zen','LenJ','zHigh','zLow','Impacts']
+header += ['GL','Zen','LenJ','Impacts']
+header += ['High','HStd','Low','LStd']
+header += ['Mag','MStd']
 if bt > 0 :
-    header += ['BTHigh','BTLow','BTChp','CostH','CostL','Variance']
+    header += ['BTHigh','BTLow','BTMag']
+    header += ['CostH','CostL','Cost']
 analytics[0] = header
 
 
