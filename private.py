@@ -28,7 +28,7 @@ import talib
 
 m = 4
 mz = 2
-bt = 0
+bt = 1
 
 pcc = 0
 est = 1000 # can be moved to 1000 to check increase in accuracy
@@ -244,7 +244,8 @@ for code in codes :
     
     # x = features
     x = np.array(xPrime).astype(float)    
-            
+    
+    # Impact Features        
     _ ,LenLF = lastFeature.shape
     impactJ = []
     impactStr = []    
@@ -258,14 +259,8 @@ for code in codes :
     LenJ = len(impactJ)
     if LenJ == 0 :
         print('No Patterns Found, Code',code)
-        continue            
+        continue                    
         
-    '''        
-    max_pct = 20
-    bins = np.arange(-max_pct, max_pct+0.5) -0.5
-    plt.hist(y, bins, alpha=0.5, histtype='bar', ec='black')
-    plt.show()
-    '''
     # Skimming for more relavant x and y
     z_pos = 0
     z_neg = 0
@@ -285,20 +280,31 @@ for code in codes :
             for k in range(xM):
                 if k not in impactJ and x[i][k] != 0 :
                     noise += 1                    
-                    break
-                    
+                    break                    
             if noise == 0 :
-                if y[i] >= 1 :                                        
-                    z_tot += 1
+                z_tot += 1
+                if y[i] >= 0 :
+                    if y[i] == 1 :
+                        z_pos += 1
+                    else :
+                        z_neg += 1
                     z_H.append(OH[i])
                     z_L.append(OL[i])
                     OM.append(OH[i]+OL[i])
                 else :
                     continue                
             
-    if z_tot == 0 :
+    if z_tot < 2 : # check minimum 2 or more cases
         print('No Supportive Evidence, Code',code)
-    else :                
+    else :    
+        # Workaround for NaN issue at np.mean            
+        if len(z_H) == 0 :
+            z_H.append(0)
+        if len(z_L) == 0 :
+            z_L.append(0)
+        if len(OM) == 0 :
+            OM.append(0)
+        
         z_ohp = np.array(z_H).astype(float)
         z_olp = np.array(z_L).astype(float)
         z_mag = np.array(OM).astype(float)
@@ -310,6 +316,10 @@ for code in codes :
         z_high_std = np.std(z_ohp)
         z_low_std = np.std(z_olp)
         z_mag_std = np.std(z_mag)
+        
+        z_high_var = np.var(z_ohp)
+        z_low_var = np.var(z_olp)
+        z_mag_var = np.var(z_mag)
                 
         z_high_mean = int(z_high_mean*100)/100
         z_low_mean = int(z_low_mean*100)/100
@@ -318,15 +328,24 @@ for code in codes :
         z_high_std = int(z_high_std*100)/100
         z_low_std = int(z_low_std*100)/100
         z_mag_std = int(z_mag_std*100)/100
+        
+        z_high_var = int(z_high_var*100)/100
+        z_low_var = int(z_low_var*100)/100
+        z_mag_var = int(z_mag_var*100)/100
 
-        # Prediction                        
+        # Prediction                                
         z_change = z_high_mean - z_low_mean        
         if z_change > 0 : # z_high_mean > z_low_mean
             y_enigma = 1            
             gainLoss = 'Buy'            
+            certainity = z_pos/z_tot
+            certainity = int(certainity*100)/100
         else :
             y_enigma = 0 
             gainLoss = 'Sell'            
+            certainity = z_neg/z_tot
+            certainity = int(certainity*100)/100
+        
 
         # Cost Analysis        
         costH = 0
@@ -352,15 +371,17 @@ for code in codes :
         limit = 100000
         zinc = z_tot*LenJ
         # Short Selling Skipped with y_enigma Filter
-        if avg_volume > limit and y_enigma == 1 and z_tot > 1 : 
+        if avg_volume > limit and y_enigma == 1 : 
             avg_volume = avg_volume/limit
-            avg_volume = int(avg_volume)            
+            avg_volume = int(avg_volume)                    
+            risk = (z_high_std+z_low_std)
             impactingFts = '_'.join(impactStr)
-            potential = (z_high_mean-z_high_std) + (z_low_mean-z_low_std)
-            dtS = [last_date_str,code,name,last_close,(avg_volume*int(last_close))]
-            dtS += [z_tot,LenJ,zinc,potential,(z_high_std+z_low_std)]
-            dtS += [-(z_low_mean-z_low_std),-(z_low_mean+z_low_std)]
-            dtS += [z_high_mean,z_high_std,z_low_mean,z_low_std]            
+            potential = (z_high_mean-z_high_std) + (z_low_mean-z_low_std)            
+            dtS = [last_date_str,code,name,(avg_volume*int(last_close))]
+            dtS += [z_tot,LenJ,zinc,potential,risk,potential-risk]
+            dtS += [-(z_low_mean-z_low_std),-(z_low_mean+z_low_std),last_close]
+            dtS += [z_high_mean,z_high_std,z_low_mean,z_low_std,certainity]            
+            dtS += [z_high_var,z_low_var,(z_high_var+z_low_var)]
             if bt > 0 :
                 dtS += [bth_change,btl_change,cost]                
             analytics.append(dtS)     
@@ -379,9 +400,10 @@ for code in codes :
 '''
 Sending Results
 '''        
-header = ['LTDate','Code','Name','LTClose','Capital']
-header += ['Zen','LenJ','Zinc','Potential','Risk','RiskBuy','SafeBuy']
-header += ['High','HStd','Low','LStd']
+header = ['LTDate','Code','Name','Capital']
+header += ['Zen','LenJ','Zinc','Potential','Risk','RR','RiskBuy','SafeBuy']
+header += ['LTClose','High','HStd','Low','LStd','Certainity']
+header += ['HVar','LVar','Var']
 if bt > 0 :
     header += ['BTHigh','BTLow','Cost']    
 analytics[0] = header
