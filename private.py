@@ -28,7 +28,7 @@ import talib
 
 m = 4
 mz = 2
-bt = 1
+bt = 10
 
 pcc = 0
 est = 1000 # can be moved to 1000 to check increase in accuracy
@@ -41,9 +41,12 @@ lenCodes = len(codes_names)
 codes = codes_names.keys()
 analytics = [['Code','Name','...']]
 initTime = datetime.datetime.now()
+#codes = ['BOM520008'] # RICO AUTO : Disaster Visualization
 #codes = ['BOM532480'] # Disaster ALBK
 #codes = ['BOM512531'] # SCI
 #codes = ['BOM532488'] # DIVIS
+#codes = ['BOM532822','BOM532374','BOM500106']
+
 for code in codes :
 #def analysis(code,m,mz,chp,est,split,bt):
     pcc += 1        
@@ -117,7 +120,7 @@ for code in codes :
     # improvement : removing dead stocks
     today = datetime.datetime.now().date()
     daydifference = (today-last_date).days
-    if daydifference > 10 : # Dead Stock
+    if daydifference > 10 and bt == 0 : # Dead Stock
         print('Old Dead Stock,Code:',code)
         continue            
     
@@ -265,15 +268,30 @@ for code in codes :
     z_pos = 0
     z_neg = 0
     z_tot = 0
+    z_occ = 0
     xN, xM = x.shape
     z_H = []
     z_L = []   
     OM = []
+    j_pos = [0]*LenJ
+    j_neg = [0]*LenJ
+    j_tot = [0]*LenJ
+    j_occ = [0]*LenJ    
     for i in range(xN):   
         match = 0
         for j in range(LenJ) :
+            # Match Count
             if x[i][impactJ[j]] == impactCDL[j] :
                 match += 1                
+                # Sample Wise Impacts
+                j_occ[j] += 1
+                if y[i] == 1 :
+                    j_pos[j] += 1
+                    j_tot[j] += 1
+                elif y[i] == 0 :
+                    j_neg[j] += 1
+                    j_tot[j] += 1
+            
         if match == LenJ : # Ancestor Record
             # Check for Inteference
             noise = 0
@@ -281,9 +299,10 @@ for code in codes :
                 if k not in impactJ and x[i][k] != 0 :
                     noise += 1                    
                     break                    
-            if noise == 0 :
-                z_tot += 1
+            if noise == 0 :                
+                z_occ += 1
                 if y[i] >= 0 :
+                    z_tot += 1
                     if y[i] == 1 :
                         z_pos += 1
                     else :
@@ -296,7 +315,7 @@ for code in codes :
             
     if z_tot < 2 : # check minimum 2 or more cases
         print('No Supportive Evidence, Code',code)
-    else :    
+    else :                
         # Workaround for NaN issue at np.mean            
         if len(z_H) == 0 :
             z_H.append(0)
@@ -315,37 +334,30 @@ for code in codes :
         
         z_high_std = np.std(z_ohp)
         z_low_std = np.std(z_olp)
-        z_mag_std = np.std(z_mag)
-        
-        z_high_var = np.var(z_ohp)
-        z_low_var = np.var(z_olp)
-        z_mag_var = np.var(z_mag)
-                
-        z_high_mean = int(z_high_mean*100)/100
-        z_low_mean = int(z_low_mean*100)/100
-        z_mag_mean = int(z_mag_mean*100)/100
-        
-        z_high_std = int(z_high_std*100)/100
-        z_low_std = int(z_low_std*100)/100
-        z_mag_std = int(z_mag_std*100)/100
-        
-        z_high_var = int(z_high_var*100)/100
-        z_low_var = int(z_low_var*100)/100
-        z_mag_var = int(z_mag_var*100)/100
+        z_mag_std = np.std(z_mag)             
 
         # Prediction                                
         z_change = z_high_mean - z_low_mean        
         if z_change > 0 : # z_high_mean > z_low_mean
             y_enigma = 1            
             gainLoss = 'Buy'            
-            certainity = z_pos/z_tot
-            certainity = int(certainity*100)/100
+            accuracy = z_pos/z_tot
+            certainity = z_pos/z_occ            
         else :
             y_enigma = 0 
             gainLoss = 'Sell'            
-            certainity = z_neg/z_tot
-            certainity = int(certainity*100)/100
+            accuracy = z_neg/z_tot
+            certainity = z_neg/z_occ
         
+        # Metrics
+        sum_ft_cdl = 0
+        sum_ft_acc = 0        
+        for j in range(LenJ):
+            sum_ft_acc += (j_pos[j]/j_tot[j]) # Single Ft Acc
+            sum_ft_cdl += impactCDL[j]
+        Ft_acc = sum_ft_acc/LenJ              # Aggregated Ft Acc
+        Ft_sum = sum_ft_cdl
+            
 
         # Cost Analysis        
         costH = 0
@@ -353,17 +365,22 @@ for code in codes :
         if bt > 0 :             
             if y_enigma == 1 :                
                 costH = (z_high_mean - z_high_std) - bth_change
-                costL = btl_change - (z_low_mean + z_low_std)                
+                costL = btl_change - (z_low_mean + z_low_std)
+                LossF = costL
             else :                       
                 costH = bth_change - (z_high_mean + z_high_std)
                 costL = (z_low_mean - z_low_std) - btl_change
-                
+                LossF = costH
+                                
             # Clamping High and Low Costs                            
             if costH < 0 :
                 costH = 0
                 
             if costL < 0 :
                 costL = 0
+                
+            if LossF < 0 :
+                LossF = 0
                 
             # Cost Function
             cost = costH + costL
@@ -380,10 +397,20 @@ for code in codes :
             dtS = [last_date_str,code,name,(avg_volume*int(last_close))]
             dtS += [z_tot,LenJ,zinc,potential,risk,potential-risk]
             dtS += [-(z_low_mean-z_low_std),-(z_low_mean+z_low_std),last_close]
-            dtS += [z_high_mean,z_high_std,z_low_mean,z_low_std,certainity]            
-            dtS += [z_high_var,z_low_var,(z_high_var+z_low_var)]
+            dtS += [z_high_mean,z_high_std,z_low_mean,z_low_std]            
+            dtS += [certainity,accuracy,Ft_acc,Ft_sum,impactingFts]
             if bt > 0 :
-                dtS += [bth_change,btl_change,cost]                
+                dtS += [bth_change,btl_change,cost,LossF]
+                
+            LenDTS = len(dtS)
+            for dti in range(LenDTS) :                
+                try :
+                    dtv = float(dtS[dti])
+                    dtv = round(dtv*100)/100
+                    dtS[dti] = dtv
+                except :
+                    continue                        
+                
             analytics.append(dtS)     
             
     if pcc%200 == 0 :
@@ -402,10 +429,10 @@ Sending Results
 '''        
 header = ['LTDate','Code','Name','Capital']
 header += ['Zen','LenJ','Zinc','Potential','Risk','RR','RiskBuy','SafeBuy']
-header += ['LTClose','High','HStd','Low','LStd','Certainity']
-header += ['HVar','LVar','Var']
+header += ['LTClose','High','HStd','Low','LStd']
+header += ['Certainity','Accuracy','FeatureAcc','FeatureSum','Impacts']
 if bt > 0 :
-    header += ['BTHigh','BTLow','Cost']    
+    header += ['BTHigh','BTLow','Cost','LossF']    
 analytics[0] = header
 
 
