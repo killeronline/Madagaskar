@@ -28,7 +28,11 @@ import talib
 
 m = 4
 mz = 2
-bt = 10
+bt = 0
+if len(sys.argv) > 1 :
+    bt = int(sys.argv[1])
+
+#bt = 0 #Override and Pcc Cap should be cleared before release
 
 pcc = 0
 est = 1000 # can be moved to 1000 to check increase in accuracy
@@ -420,7 +424,7 @@ for code in codes :
         pgText = mtT.format(iTime,pcc,lenCodes,progress)
         mailer.SendEmail(pgText,None)
         
-    if pcc > 999 :
+    if pcc > 9999 :
         break
     
 
@@ -428,8 +432,9 @@ for code in codes :
 Sending Results
 '''        
 header = ['LTDate','Code','Name','Capital']
-header += ['Zen','LenJ','Zinc','Potential','Risk','RR','RiskBuy','SafeBuy']
-header += ['LTClose','High','HStd','Low','LStd']
+header += ['Zen','LenJ','Zinc','Potential','Risk','RR']
+header += ['RiskBuy','SafeBuy','LTClose']
+header += ['High','HStd','Low','LStd']
 header += ['Certainity','Accuracy','FeatureAcc','FeatureSum','Impacts']
 if bt > 0 :
     header += ['BTHigh','BTLow','Cost','LossF']    
@@ -439,12 +444,72 @@ analytics[0] = header
 if len(analytics) > 1 :    
     adf = pd.DataFrame(analytics[1:])
     adf.columns = analytics[0]
+    # Equip with Learned Scatter Trends    
+    LenADF = len(adf)
+    Learning = [0]*LenADF
+    # Rules
+    Rules = [
+                ['FeatureSum','GTE',300],
+                ['FeatureSum','LTE',-300],
+                ['SafeBuy','LT',-5.33],
+                ['RiskBuy','LTE',-1.73],
+                ['RR','LT',-6.9],
+                ['Potential','LT',-1.3],
+                ['Low','GT',2.7],
+                ['LStd','GT',3.2],
+                ['Risk','GTE',6.8],
+                ['Zinc','GT',250],
+                ['Zen','GT',126],
+                ['Capital','GT',6397],
+                ['LTClose','GT',877],
+                ['High','GT',5.6],
+                ['HStd','GT',4.2],
+                ['LenJ','GT',4],
+            ]
+    for [hyper,operator,value] in Rules :
+        for i in range(LenADF):
+            if operator == 'GTE' and adf[hyper][i] >= value : Learning[i] += 1
+            if operator == 'GT'  and adf[hyper][i] >  value : Learning[i] += 1
+            if operator == 'EQ'  and adf[hyper][i] == value : Learning[i] += 1
+            if operator == 'LT'  and adf[hyper][i] <  value : Learning[i] += 1
+            if operator == 'LTE' and adf[hyper][i] <= value : Learning[i] += 1                                        
+            
+    analytics[0].append('Points')
+    for j in range(LenADF):
+        analytics[j+1].append(Learning[j])        
+            
+    # Remake
+    kgf = pd.DataFrame(analytics[1:])
+    kgf.columns = analytics[0]
+    
+    # Final Columns
+    simple = ['LTDate','Code','Name','RiskBuy','SafeBuy','LTClose']
+    if bt > 0 :
+        simple += ['BTHigh','BTLow','Cost','LossF']
+    # Mandatory Column
+    simple += ['Points']
+    analytics = []
+    LenKGF = len(kgf)
+    analytics.append(simple)    
+    for ki in range(LenKGF):
+        vals = []
+        for scolName in simple :
+            vals.append(kgf[scolName][ki])
+        if kgf['Points'][ki] > 2 : # Observations
+            analytics.append(vals)
+    
                 
+
+# Saving and Sending Email
+filePrefix = 'R'
+if bt > 0 :
+    filePrefix = 'B'    
+    
 if not os.path.exists('results'):
     os.makedirs('results')
-
+    
 finishdatetime = datetime.datetime.now()
-resultfilename = 'R'+finishdatetime.strftime('%d_%b_%Y_%H_%M_%S')+'.csv'
+resultfilename = filePrefix + finishdatetime.strftime('%d_%b_%Y_%H_%M_%S')+'.csv'
 resultfilepath = os.path.join('results',resultfilename)    
 with open(resultfilepath,'w+',newline='') as csv_file:
     csvWriter = csv.writer(csv_file,delimiter=',')

@@ -18,7 +18,7 @@ while True :
     st = datetime.datetime.now()   
     
     # Rico
-    if instant or hour % 1 == 0 :
+    if instant or hour % 3 == 0 :
         try :
             os.system('python hello.py')
         except :
@@ -39,11 +39,17 @@ while True :
         except :
             print('Failure : Kowaski')
     '''
+    # Run BackTest
+    if instant or hour == 21 : # 9 PM
+        try :
+            os.system('python private.py 1') # BackTest
+        except :
+            print('Failure : BackTest')
             
     # Run Private
-    if instant or hour % 6 == 0 :
+    if instant or hour == 6 : # 6 AM
         try :
-            os.system('python private.py')
+            os.system('python private.py') # Forecast
         except :
             print('Failure : Private')
         

@@ -1,0 +1,37 @@
+Index(['LTDate', 'Code', 'Name', 'Capital', 'Zen', 'LenJ', 'Zinc', 'Potential',
+       'Risk', 'RR', 'RiskBuy', 'SafeBuy', 'LTClose', 'High', 'HStd', 'Low',
+       'LStd', 'Certainity', 'Accuracy', 'FeatureAcc', 'FeatureSum', 'Impacts',
+       'BTHigh', 'BTLow', 'Cost', 'LossF'],
+      dtype='object')
+
+adf.plot.scatter('LossF','Capital')	  	  
+
+Extremes :
+	Feature Sum <= -300 ? 90% No Loss
+	Feature Sum >= 300  ? 90% No Loss	
+
+	
+	SafeBuy < -5.33 is Good < -5.06 (Lessers)	
+	RiskyBuy <= -1.73 is Good, < -1.26 (Lessers)	
+	
+	RR < -6.55 is Good, < -6.9 are good(Lessers)	
+	Potential < -1.143 are Good, < -1.3 (Less Better)
+
+	Low > 2.3 is Good > 2.7 is (Good)
+	LStd > 3.2 is Good	>2.6 (Highers)	
+	Risk >= 6.8 is Worth it. >6.4 (Highers)
+	Zinc > 250 is Good,125 (Highers)	
+	Zen > 126 is Good, 82 is Good ( High)
+	Capital > 6397,1249 is Good (High)
+	LTClose >= 877 is Good > 684 are good (Highers)
+	High Caps at 4.3  > 3.3 is Good (Highers)  >5.6 are Good  	
+	HStd > 4.2 wins >4.04 is Good	
+	LenJ > 4 Wins, Higher LenJ are better
+		
+	
+	
+	
+	
+	
+	
+	  
